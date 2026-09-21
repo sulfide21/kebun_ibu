@@ -34,61 +34,98 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
   const [foto, setFoto] = useState<string[]>(fotoAwal);
   const [sedangUnggah, setSedangUnggah] = useState(false);
   const [galatFoto, setGalatFoto] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
   /**
    * Foto dari HP bisa 3-8 MB. Dikecilkan dulu di browser supaya tidak
    * putus di tengah jalan saat sinyal lemah, dan supaya kuota
    * penyimpanan gratis tidak cepat habis.
+   *
+   * Tiap langkah menulis status ke layar. Versi pertama fungsi ini gagal
+   * tanpa suara sedikit pun, dan itu yang paling lama dicari - jadi
+   * sekarang lebih baik cerewet daripada diam.
    */
   async function unggah(berkas: FileList | null) {
     // Disalin ke array SEKARANG JUGA, sebelum ada await satu pun.
     // Input file dikosongkan tepat setelah fungsi ini menyentuh await
     // pertamanya, dan mengosongkan input ikut mengosongkan FileList-nya.
-    // Kalau disalin belakangan, daftarnya sudah kosong dan tidak ada
-    // satu foto pun yang terunggah - tanpa pesan error sama sekali.
     const daftarBerkas = berkas ? Array.from(berkas) : [];
-    if (daftarBerkas.length === 0) return;
 
     setGalatFoto(null);
+    setStatus(`Menerima ${daftarBerkas.length} berkas…`);
+
+    if (daftarBerkas.length === 0) {
+      setGalatFoto("Tidak ada berkas yang terbaca. Coba pilih fotonya lagi.");
+      setStatus(null);
+      return;
+    }
+
     setSedangUnggah(true);
+    const sisaSlot = MAKS_FOTO - foto.length;
+    const antre = daftarBerkas.slice(0, Math.max(sisaSlot, 0));
+    const hasilUnggah: string[] = [];
 
     try {
-      const { default: kecilkan } = await import("browser-image-compression");
       const supabase = supabaseBrowser();
-      const hasilUnggah: string[] = [];
 
-      for (const file of daftarBerkas.slice(0, MAKS_FOTO - foto.length)) {
+      for (let i = 0; i < antre.length; i++) {
+        const file = antre[i];
+        const urutanTeks = `${i + 1} dari ${antre.length}`;
+
         if (!file.type.startsWith("image/")) {
-          setGalatFoto("Hanya bisa mengunggah gambar.");
+          setGalatFoto(`"${file.name}" bukan gambar, dilewati.`);
           continue;
         }
 
-        const kecil = await kecilkan(file, {
-          maxSizeMB: 0.35,
-          maxWidthOrHeight: 1400,
-          useWebWorker: true,
-          fileType: "image/jpeg",
-        });
+        setStatus(`Mengecilkan foto ${urutanTeks}…`);
+        let siapKirim: Blob = file;
+        try {
+          const { default: kecilkan } = await import(
+            "browser-image-compression"
+          );
+          siapKirim = await kecilkan(file, {
+            maxSizeMB: 0.35,
+            maxWidthOrHeight: 1400,
+            useWebWorker: true,
+            fileType: "image/jpeg",
+          });
+        } catch (error) {
+          // Gagal dikecilkan bukan alasan untuk gagal total. Foto besar
+          // yang terunggah tetap lebih berguna daripada tidak ada foto.
+          console.warn("[foto] gagal dikecilkan, kirim aslinya:", error);
+          setStatus(`Foto ${urutanTeks} dikirim tanpa dikecilkan…`);
+        }
 
+        setStatus(`Mengunggah foto ${urutanTeks}…`);
         const nama = `${namaAcak()}.jpg`;
         const { error } = await supabase.storage
           .from("foto")
-          .upload(nama, kecil, { contentType: "image/jpeg", upsert: false });
+          .upload(nama, siapKirim, {
+            contentType: "image/jpeg",
+            upsert: false,
+          });
 
         if (error) {
-          setGalatFoto(`Foto gagal diunggah: ${error.message}`);
+          console.error("[foto] gagal diunggah:", error);
+          setGalatFoto(`Foto ${urutanTeks} gagal diunggah: ${error.message}`);
           continue;
         }
         hasilUnggah.push(nama);
       }
 
-      setFoto((lama) => [...lama, ...hasilUnggah].slice(0, MAKS_FOTO));
+      if (hasilUnggah.length > 0) {
+        setFoto((lama) => [...lama, ...hasilUnggah].slice(0, MAKS_FOTO));
+        setStatus(
+          `${hasilUnggah.length} foto terunggah. Tekan Simpan supaya menempel di barang ini.`,
+        );
+      } else {
+        setStatus(null);
+      }
     } catch (error) {
-      // Pesannya ikut ditampilkan, bukan cuma "gagal". Bug pertama di
-      // bagian ini diam total, dan itu yang paling lama dicari.
       const pesan = error instanceof Error ? error.message : String(error);
       console.error("[foto] gagal:", error);
       setGalatFoto(`Foto gagal diproses: ${pesan}`);
+      setStatus(null);
     } finally {
       setSedangUnggah(false);
     }
@@ -135,15 +172,31 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
               className="sr-only"
               disabled={sedangUnggah}
               onChange={(e) => {
-                void unggah(e.target.files);
-                e.target.value = "";
+                // Input baru dikosongkan SESUDAH unggahan selesai.
+                // Mengosongkannya lebih awal ikut mengosongkan daftar
+                // berkasnya, dan unggahan batal tanpa pesan apa pun.
+                const input = e.target;
+                void unggah(input.files).finally(() => {
+                  input.value = "";
+                });
               }}
             />
           </label>
         ) : null}
 
+        {status ? (
+          <p
+            aria-live="polite"
+            className="rounded-[6px] border-2 border-daun bg-putih px-3 py-2 font-semibold text-daun-tua"
+          >
+            {status}
+          </p>
+        ) : null}
+
         {galatFoto ? (
-          <p className="font-semibold text-bata">{galatFoto}</p>
+          <p aria-live="polite" className="font-semibold text-bata">
+            {galatFoto}
+          </p>
         ) : null}
       </fieldset>
 
