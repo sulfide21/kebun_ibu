@@ -9,56 +9,82 @@ akun untuk pembeli. Uang tetap tunai, seperti biasa.
 
 ---
 
-## Yang perlu disiapkan sekali saja
+## Menyiapkan database
 
-Perkiraan waktu: **30-45 menit**, sebagian besar menunggu.
+Ada dua cara. **Cara A untuk mengerjakan dan demo**, Cara B saat sudah mau
+dinaikkan ke internet. Keduanya memakai skema yang sama, jadi pindah dari A
+ke B cukup mengganti tiga nilai di `.env.local`.
 
-### 1. Buat proyek Supabase (gratis)
+---
 
-1. Daftar di [supabase.com](https://supabase.com), buat proyek baru.
-2. Pilih region **Southeast Asia (Singapore)** — paling dekat.
-3. Simpan kata sandi database di tempat aman.
-4. Tunggu sampai proyeknya siap (sekitar 2 menit).
+### Cara A — Supabase lokal (Docker)
 
-### 2. Jalankan skema database
+Perkiraan waktu: **20 menit**, hampir seluruhnya mengunduh.
 
-1. Di Supabase, buka **SQL Editor**.
-2. Buka berkas [`supabase/schema.sql`](supabase/schema.sql), salin **seluruh
-   isinya**, tempel di editor, tekan **Run**.
-3. Harus muncul "Success". Berkas ini aman dijalankan berulang kali.
+Tidak perlu membuka supabase.com sama sekali. Semuanya jalan di komputer
+sendiri: Postgres, Auth, Storage, plus Studio (tampilan seperti dashboard
+Supabase) di `localhost:54323`.
 
-### 3. Buat akun untuk Ibu dan Bapak
+1. **Nyalakan Docker Desktop**, tunggu sampai ikon paus berhenti bergerak.
 
-1. Di Supabase, buka **Authentication > Users > Add user**.
-2. Isi email dan kata sandi, centang **Auto Confirm User**.
-3. Ulangi untuk akun kedua.
+2. **Jalankan:**
+
+   ```bash
+   npx supabase start
+   ```
+
+   Unduhan pertama sekitar 2 GB. Sesudahnya, menyalakan hanya butuh beberapa
+   detik. Skema di `supabase/migrations/` ikut dipasang otomatis — tidak
+   perlu menempel SQL ke mana pun.
+
+3. **Salin kunci yang dicetak** ke `.env.local` (salin dulu dari
+   `.env.example`):
+
+   | Isian | Baris yang dicetak |
+   |---|---|
+   | `NEXT_PUBLIC_SUPABASE_URL` | `API URL` |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon key` |
+   | `SUPABASE_SERVICE_ROLE_KEY` | `service_role key` |
+
+4. **Buat akun Ibu dan Bapak:** buka <http://127.0.0.1:54323> →
+   **Authentication > Add user** → isi email dan kata sandi.
+
+5. **Jalankan situsnya:**
+
+   ```bash
+   npm run dev
+   ```
+
+   Buka <http://localhost:3000>. Halaman penjual ada di `/admin`.
+
+Perintah yang sering dipakai:
+
+```bash
+npx supabase stop          # matikan (data tetap tersimpan)
+npx supabase status        # lihat kunci lagi
+npx supabase db reset      # kosongkan dan pasang ulang skema
+```
+
+---
+
+### Cara B — Supabase online (saat mau dipakai betulan)
+
+1. Daftar di [supabase.com](https://supabase.com), buat proyek baru, region
+   **Southeast Asia (Singapore)**.
+2. Buka **SQL Editor**, salin seluruh isi
+   [`supabase/migrations/20260921000000_skema_awal.sql`](supabase/migrations/20260921000000_skema_awal.sql),
+   tempel, tekan **Run**. Aman dijalankan berulang kali.
+3. **Authentication > Users > Add user** untuk Ibu dan Bapak, centang
+   **Auto Confirm User**.
+4. Isi `.env.local` dari **Project Settings > API**: Project URL, anon key,
+   service_role key.
 
 Pakai kata sandi yang panjang dan berbeda dari kata sandi lain. Akun inilah
 jalan masuk yang paling mungkin ditembus orang — bukan celah di kodenya.
 
-### 4. Isi kunci di `.env.local`
-
-Salin `.env.example` jadi `.env.local`, lalu isi dari Supabase
-(**Project Settings > API**):
-
-| Isian | Diambil dari |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role key |
-
 > `SUPABASE_SERVICE_ROLE_KEY` menembus semua aturan keamanan database.
 > Jangan di-commit, jangan dikirim lewat WhatsApp, jangan diberi awalan
 > `NEXT_PUBLIC_`.
-
-### 5. Jalankan
-
-```bash
-npm install
-npm run dev
-```
-
-Buka <http://localhost:3000>. Halaman penjual ada di `/admin`.
 
 ---
 
@@ -154,7 +180,8 @@ Bukan karena lupa — ini keputusan, dan alasannya ada di
 ## Struktur
 
 ```
-supabase/schema.sql        tabel, aturan RLS, fungsi terima_pesanan
+supabase/migrations/       tabel, aturan RLS, fungsi terima_pesanan
+supabase/config.toml       pengaturan Supabase lokal (Docker)
 src/lib/                   validasi, format rupiah/WIB, klien Supabase, email
 src/app/page.tsx           beranda (daftar barang)
 src/app/l/[id]/            halaman barang + form pesan/nawar
