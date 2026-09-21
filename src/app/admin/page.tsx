@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { LABEL_STATUS_PESANAN, type PesananDenganListing } from "@/lib/types";
 import KartuPesanan from "./KartuPesanan";
+import Ringkasan from "./Ringkasan";
 
 export const revalidate = 0;
 
@@ -39,6 +40,8 @@ export default async function KotakMasuk({
 
   return (
     <>
+      <Ringkasan />
+
       <div className="mb-5">
         <h1 className="text-3xl font-extrabold text-daun-tua">Kotak masuk</h1>
         <p className="mt-1 text-daun">

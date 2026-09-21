@@ -8,6 +8,19 @@ import type { Listing } from "@/lib/types";
 
 const MAKS_FOTO = 6;
 
+/**
+ * crypto.randomUUID() hanya ada di "secure context": https atau localhost.
+ * Membuka situs ini dari HP lewat alamat LAN (http://192.168.x.x:3000) -
+ * yang pasti dilakukan saat mencoba di HP Ibu - bukan secure context, dan
+ * di sana randomUUID tidak ada sama sekali.
+ */
+function namaAcak(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 type Props = {
   listing?: Listing;
   fotoAwal?: string[];
@@ -28,7 +41,14 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
    * penyimpanan gratis tidak cepat habis.
    */
   async function unggah(berkas: FileList | null) {
-    if (!berkas || berkas.length === 0) return;
+    // Disalin ke array SEKARANG JUGA, sebelum ada await satu pun.
+    // Input file dikosongkan tepat setelah fungsi ini menyentuh await
+    // pertamanya, dan mengosongkan input ikut mengosongkan FileList-nya.
+    // Kalau disalin belakangan, daftarnya sudah kosong dan tidak ada
+    // satu foto pun yang terunggah - tanpa pesan error sama sekali.
+    const daftarBerkas = berkas ? Array.from(berkas) : [];
+    if (daftarBerkas.length === 0) return;
+
     setGalatFoto(null);
     setSedangUnggah(true);
 
@@ -37,7 +57,7 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
       const supabase = supabaseBrowser();
       const hasilUnggah: string[] = [];
 
-      for (const file of Array.from(berkas).slice(0, MAKS_FOTO - foto.length)) {
+      for (const file of daftarBerkas.slice(0, MAKS_FOTO - foto.length)) {
         if (!file.type.startsWith("image/")) {
           setGalatFoto("Hanya bisa mengunggah gambar.");
           continue;
@@ -50,7 +70,7 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
           fileType: "image/jpeg",
         });
 
-        const nama = `${crypto.randomUUID()}.jpg`;
+        const nama = `${namaAcak()}.jpg`;
         const { error } = await supabase.storage
           .from("foto")
           .upload(nama, kecil, { contentType: "image/jpeg", upsert: false });
@@ -63,8 +83,12 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
       }
 
       setFoto((lama) => [...lama, ...hasilUnggah].slice(0, MAKS_FOTO));
-    } catch {
-      setGalatFoto("Foto gagal diproses. Coba foto lain.");
+    } catch (error) {
+      // Pesannya ikut ditampilkan, bukan cuma "gagal". Bug pertama di
+      // bagian ini diam total, dan itu yang paling lama dicari.
+      const pesan = error instanceof Error ? error.message : String(error);
+      console.error("[foto] gagal:", error);
+      setGalatFoto(`Foto gagal diproses: ${pesan}`);
     } finally {
       setSedangUnggah(false);
     }

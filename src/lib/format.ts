@@ -46,6 +46,32 @@ export function waktuLalu(iso: string): string {
   return tanggalSingkatWIB(iso);
 }
 
+/**
+ * Awal bulan menurut WIB, dikembalikan sebagai ISO untuk dipakai query.
+ * mundur=0 berarti bulan ini, mundur=1 bulan lalu.
+ *
+ * Batas bulan dihitung di WIB, bukan UTC. Penjualan jam 8 malam tanggal 31
+ * masih masuk bulan itu bagi Ibu, padahal di UTC sudah lewat tengah malam.
+ */
+export function awalBulanWIB(mundur = 0): string {
+  const sekarang = new Date();
+  const bagian = new Intl.DateTimeFormat("en-CA", {
+    timeZone: WIB,
+    year: "numeric",
+    month: "2-digit",
+  }).format(sekarang);
+
+  const [tahun, bulan] = bagian.split("-").map(Number);
+  const total = tahun * 12 + (bulan - 1) - mundur;
+  const t = Math.floor(total / 12);
+  const b = (total % 12) + 1;
+
+  // +07:00 = WIB, tidak pernah berubah (tidak ada daylight saving)
+  return new Date(
+    `${t}-${String(b).padStart(2, "0")}-01T00:00:00+07:00`,
+  ).toISOString();
+}
+
 /** 628123456789 -> 0812-3456-789 (lebih enak dibaca Ibu/Bapak) */
 export function tampilkanNoWa(no: string): string {
   const lokal = no.startsWith("62") ? "0" + no.slice(2) : no;
