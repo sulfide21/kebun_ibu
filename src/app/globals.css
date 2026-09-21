@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
+@theme {
+  /* Warna diambil dari kebunnya sendiri: daun mangga, kulit harum manis
+     yang menguning, dan kertas pembungkus. */
+  --color-daun-tua: #17392a;
+  --color-daun: #2d6a4f;
+  --color-daun-muda: #7fa98c;
+  --color-emas: #e8a33d;
+  --color-emas-tua: #c07f1e;
+  --color-kertas: #eef2e6;
+  --color-kertas-tua: #e2e8d6;
+  --color-bata: #b3412f;
+  --color-putih: #ffffff;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-foto: 6px;
+  --radius-kartu: 10px;
+  --radius-pil: 999px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-kertas);
+  color: var(--color-daun-tua);
+  font-family: var(--font-sans);
+  /* Pembaca utamanya orang tua di layar HP. Besar dan longgar. */
+  font-size: 18px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Angka rupiah selalu rata, tidak goyang saat berubah */
+.angka {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Fokus keyboard harus selalu terlihat */
+:focus-visible {
+  outline: 3px solid var(--color-daun);
+  outline-offset: 2px;
+}
+
+/* Stempel "sudah laku" - satu-satunya elemen yang berani di halaman ini */
+.stempel {
+  transform: rotate(-8deg);
+  border: 3px solid var(--color-bata);
+  color: var(--color-bata);
+  background: rgba(255, 255, 255, 0.92);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Kertas bergaris tipis di belakang banner musim, seperti papan cat di
+   gerbang kebun */
+.papan {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0px,
+    rgba(255, 255, 255, 0.06) 2px,
+    transparent 2px,
+    transparent 10px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
