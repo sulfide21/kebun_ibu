@@ -140,16 +140,30 @@ grant update                         on public.pengaturan   to authenticated;
 grant insert                         on public.pesanan      to anon;
 grant select, insert, update, delete on public.pesanan      to authenticated;
 
+-- Hanya select, dan policy di bawah membatasinya ke baris miliknya
+-- sendiri. Jadi orang cuma bisa tahu "saya pengelola atau bukan",
+-- tidak bisa melihat daftar pengelola lain.
+grant select                         on public.pengelola    to authenticated;
+
 -- ---------- 3. SIAPA PENGELOLA ----------
--- Dipakai semua aturan di bawah. SECURITY DEFINER supaya bisa membaca
--- tabel pengelola tanpa memicu pemeriksaan RLS yang berputar-putar.
--- search_path dikunci: tanpa itu, isi fungsi bisa diarahkan ke tabel palsu.
+-- Dipakai semua aturan di bawah.
+--
+-- Fungsi ini SENGAJA BUKAN security definer. Versi pertamanya begitu, lalu
+-- ditandai Security Advisor - dan peringatannya benar: fungsi security
+-- definer berjalan dengan hak pembuatnya, jadi kalau ada celah di dalamnya,
+-- celah itu berjalan dengan hak penuh.
+--
+-- Tidak diperlukan, karena pengelola punya policy "hanya baris sendiri".
+-- Setiap orang bisa memeriksa dirinya sendiri tanpa bisa melihat daftar
+-- pengelola lain, dan fungsinya cukup berjalan dengan hak pemanggil.
+--
+-- search_path tetap dikunci supaya isinya tidak bisa diarahkan ke tabel
+-- palsu oleh pemanggil.
 
 create or replace function public.is_pengelola()
 returns boolean
 language sql
 stable
-security definer
 set search_path = public, pg_temp
 as $ip$
   select exists (
@@ -173,9 +187,15 @@ alter table public.pesanan      enable row level security;
 alter table public.pengaturan   enable row level security;
 alter table public.pengelola    enable row level security;
 
--- Tidak ada satu pun policy untuk pengelola: artinya tabel ini hanya bisa
--- disentuh lewat SQL Editor atau service_role. Daftar pengelola tidak
--- boleh bisa diubah dari dalam aplikasi.
+-- Pengelola hanya boleh melihat BARIS DIRINYA SENDIRI, dan tidak ada
+-- policy insert/update/delete sama sekali. Jadi:
+--   - setiap orang bisa memeriksa "saya pengelola atau bukan"
+--   - tidak ada yang bisa melihat daftar pengelola lain
+--   - daftar pengelola tidak bisa diubah dari dalam aplikasi, bahkan oleh
+--     pengelola sendiri; hanya lewat SQL Editor atau service_role
+drop policy if exists pengelola_lihat_diri_sendiri on public.pengelola;
+create policy pengelola_lihat_diri_sendiri on public.pengelola
+  for select to authenticated using (user_id = auth.uid());
 
 drop policy if exists listings_baca_publik  on public.listings;
 drop policy if exists listings_kelola_admin on public.listings;
