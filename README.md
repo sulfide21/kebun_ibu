@@ -81,8 +81,18 @@ npx supabase db reset      # kosongkan dan pasang ulang skema
 3. **Authentication > Users > Add user** untuk Ibu dan Bapak, centang
    **Auto Confirm User**. Lalu jadikan keduanya pengelola — lihat bagian
    berikutnya. **Punya akun saja tidak cukup.**
-4. **Authentication > Sign In / Providers > Email**: matikan **Allow new
-   users to sign up**, dan nyalakan **Leaked password protection**.
+4. **Authentication > Sign In / Providers**: matikan **Allow new users to
+   sign up**. Ini yang paling penting di seluruh daftar — tanpa itu, siapa
+   pun bisa membuat akun sendiri di proyek ini.
+5. Di halaman yang sama, atur **Minimum password length** jadi 12,
+   nyalakan **Password requirements**, **Secure password change**, dan
+   **Require current password when updating**.
+
+> **Leaked password protection** (pengecekan ke HaveIBeenPwned) hanya ada di
+> paket Pro, jadi peringatannya akan tetap muncul di Security Advisor.
+> Penggantinya: pendaftaran ditutup, kata sandi panjang dan acak, dan syarat
+> kata sandi dinyalakan. Dengan hanya dua akun yang semuanya kita kendalikan
+> sendiri, pengecekan itu memang tidak banyak menambah.
 4. Isi `.env.local` dari **Project Settings > API**: Project URL, anon key,
    service_role key.
 
