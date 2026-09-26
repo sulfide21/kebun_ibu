@@ -91,6 +91,16 @@ insert into public.pengaturan (id) values (1) on conflict (id) do nothing;
 -- GRANT di bawah sengaja longgar; yang benar-benar menjaga data adalah
 -- RLS di bagian 3. Perhatikan: anon TIDAK diberi select pada pesanan.
 
+-- Dicabut dulu, baru diberikan. GRANT hanya menambah, tidak pernah
+-- mengurangi - jadi kalau proyeknya terlanjur memberi hak akses otomatis,
+-- menulis GRANT saja tidak menghapusnya. Dengan dicabut lebih dulu,
+-- hasil akhirnya sama persis di proyek mana pun, mau pengaturannya
+-- bagaimanapun. service_role dan postgres sengaja tidak disentuh.
+revoke all on public.listings     from anon, authenticated;
+revoke all on public.listing_foto from anon, authenticated;
+revoke all on public.pesanan      from anon, authenticated;
+revoke all on public.pengaturan   from anon, authenticated;
+
 grant usage on schema public to anon, authenticated;
 
 grant select                         on public.listings     to anon, authenticated;
