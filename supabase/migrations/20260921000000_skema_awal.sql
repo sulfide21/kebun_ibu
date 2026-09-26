@@ -313,9 +313,12 @@ insert into storage.buckets (id, name, public)
 values ('foto', 'foto', true)
 on conflict (id) do update set public = true;
 
-drop policy if exists foto_lihat_semua  on storage.objects;
-drop policy if exists foto_unggah_admin on storage.objects;
-drop policy if exists foto_hapus_admin  on storage.objects;
+-- Nama lama ikut dihapus supaya berkas ini tetap bisa dijalankan ulang
+-- di database yang pernah memakai versi sebelumnya.
+drop policy if exists foto_lihat_semua      on storage.objects;
+drop policy if exists foto_lihat_pengelola  on storage.objects;
+drop policy if exists foto_unggah_admin     on storage.objects;
+drop policy if exists foto_hapus_admin      on storage.objects;
 
 -- SENGAJA TIDAK ADA policy select untuk anon.
 --
