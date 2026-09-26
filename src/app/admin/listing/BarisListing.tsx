@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { hapusListing } from "../actions";
 import { urlFoto } from "@/lib/foto";
 import { rupiah } from "@/lib/format";
-import { linkBagikan } from "@/lib/wa";
+import TombolBagikan from "@/components/TombolBagikan";
 import { LABEL_STATUS_LISTING, type ListingLengkap } from "@/lib/types";
 
 const WARNA_STATUS: Record<string, string> = {
@@ -106,14 +106,7 @@ export default function BarisListing({
         </div>
       ) : (
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <a
-            href={linkBagikan(listing)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex min-h-13 items-center justify-center rounded-full bg-emas px-4 font-bold text-daun-tua"
-          >
-            Bagikan ke WhatsApp
-          </a>
+          <TombolBagikan listing={listing} />
           <Link
             href={`/admin/listing/${listing.id}`}
             className="flex min-h-13 items-center justify-center rounded-full border-2 border-daun-tua px-4 font-bold"

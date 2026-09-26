@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { awalBulanWIB, rupiah } from "@/lib/format";
-import { linkBagikan } from "@/lib/wa";
+import TombolBagikan from "@/components/TombolBagikan";
 import type { Listing, PesananDenganListing } from "@/lib/types";
 
 /** Harga yang benar-benar terjadi pada satu pesanan. */
@@ -110,14 +110,7 @@ export default async function Ringkasan() {
           Pasang barang
         </Link>
         {terbaru ? (
-          <a
-            href={linkBagikan(terbaru)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex min-h-13 items-center justify-center rounded-full bg-emas px-5 text-center font-bold text-daun-tua"
-          >
-            Bagikan &ldquo;{terbaru.judul}&rdquo;
-          </a>
+          <TombolBagikan listing={terbaru} />
         ) : (
           <Link
             href="/admin/listing"

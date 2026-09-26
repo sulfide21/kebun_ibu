@@ -143,7 +143,9 @@ persis di minggu sebelum demo.
 **Ibu/Bapak:**
 
 1. `/admin/listing` → **Pasang** → foto, harga, keterangan bebas → Simpan.
-2. Tekan **Bagikan ke WhatsApp** → pilih grup keluarga → kirim.
+2. Tekan **Bagikan**. Di HP akan muncul daftar aplikasi (WhatsApp,
+   Facebook, Telegram, apa saja yang terpasang) — pilih grup keluarga, kirim.
+   Di laptop, teksnya langsung tersalin dan tinggal ditempel.
 3. Penawaran masuk ke **Kotak masuk**.
 4. **Terima** yang dipilih. Dua centang muncul, keduanya sudah tercentang:
    tandai barang jadi "sudah laku", dan tolak penawaran lain. Boleh dilepas

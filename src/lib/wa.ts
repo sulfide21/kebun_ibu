@@ -16,10 +16,10 @@ export function linkWa(no: string, pesan: string): string {
 export function pesanBagikan(listing: Listing): string {
   const link = `${alamatSitus()}/l/${listing.id}`;
   return [
-    `Assalamualaikum, ada ${listing.judul}.`,
+    `Ada ${listing.judul} nih.`,
     `Harga ${rupiah(listing.harga)} ${listing.satuan}.`,
     ``,
-    `Yang mau pesan atau nawar bisa lewat sini ya:`,
+    `Mau pesan atau nawar? Lewat sini aja:`,
     link,
   ].join("\n");
 }
@@ -34,18 +34,13 @@ export function pesanPenawaranDiterima(pesanan: PesananDenganListing): string {
   const judul = pesanan.listings?.judul || pesanan.judul_snapshot || "barang";
 
   return [
-    `Assalamualaikum ${pesanan.nama},`,
+    `Halo ${pesanan.nama},`,
     ``,
-    `Penawaran untuk ${judul} sudah diterima.`,
+    `Penawarannya untuk ${judul} diterima ya.`,
     harga ? `Harga: ${harga}.` : ``,
     ``,
-    `Untuk pengambilan, bisa diatur kapan?`,
+    `Enaknya diambil kapan?`,
   ]
     .filter(Boolean)
     .join("\n");
-}
-
-/** Tautan bagikan lewat WhatsApp Web / aplikasi, tanpa nomor tujuan. */
-export function linkBagikan(listing: Listing): string {
-  return `https://wa.me/?text=${encodeURIComponent(pesanBagikan(listing))}`;
 }
