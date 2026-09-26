@@ -76,7 +76,38 @@ create table if not exists public.pengaturan (
 );
 insert into public.pengaturan (id) values (1) on conflict (id) do nothing;
 
--- ---------- 2. ROW LEVEL SECURITY ----------
+-- ---------- 2. HAK AKSES TABEL (GRANT) ----------
+-- Ada DUA lapisan yang menentukan sebuah tabel bisa dipakai lewat API:
+--
+--   1. GRANT  - boleh menyentuh tabelnya sama sekali atau tidak
+--   2. RLS    - baris mana yang boleh dilihat atau diubah
+--
+-- Supabase dulu memberi GRANT otomatis ke semua tabel baru di schema
+-- public. Sejak 2026 itu dimatikan untuk proyek baru, dan mulai
+-- 30 Oktober 2026 berlaku untuk semua proyek. Karena itu hak aksesnya
+-- ditulis di sini, supaya berkas ini jalan sendiri di proyek mana pun,
+-- dengan pengaturan apa pun.
+--
+-- GRANT di bawah sengaja longgar; yang benar-benar menjaga data adalah
+-- RLS di bagian 3. Perhatikan: anon TIDAK diberi select pada pesanan.
+
+grant usage on schema public to anon, authenticated;
+
+grant select                         on public.listings     to anon, authenticated;
+grant insert, update, delete         on public.listings     to authenticated;
+
+grant select                         on public.listing_foto to anon, authenticated;
+grant insert, update, delete         on public.listing_foto to authenticated;
+
+grant select                         on public.pengaturan   to anon, authenticated;
+grant update                         on public.pengaturan   to authenticated;
+
+-- Publik boleh mengirim pesanan, tapi tidak boleh membacanya.
+-- Ini ditegakkan dua kali: di GRANT ini dan di policy RLS nanti.
+grant insert                         on public.pesanan      to anon;
+grant select, insert, update, delete on public.pesanan      to authenticated;
+
+-- ---------- 3. ROW LEVEL SECURITY ----------
 -- Kunci utama keamanan situs ini. Anon key ikut terkirim ke browser dan
 -- memang bersifat publik; RLS yang menentukan apa yang boleh dilakukan.
 
@@ -124,7 +155,7 @@ create policy pengaturan_baca_publik on public.pengaturan
 create policy pengaturan_ubah_admin  on public.pengaturan
   for update to authenticated using (true) with check (true);
 
--- ---------- 3. TERIMA PESANAN (anti dua pemenang) ----------
+-- ---------- 4. TERIMA PESANAN (anti dua pemenang) ----------
 -- Ibu dan Bapak bisa membuka halaman yang sama di HP masing-masing.
 -- Fungsi ini mengunci baris listing lebih dulu, jadi hanya satu
 -- penawaran yang bisa menang untuk satu listing.
@@ -181,7 +212,7 @@ $fn$;
 revoke all on function public.terima_pesanan(uuid, boolean, boolean) from public, anon;
 grant execute on function public.terima_pesanan(uuid, boolean, boolean) to authenticated;
 
--- ---------- 4. STORAGE (foto) ----------
+-- ---------- 5. STORAGE (foto) ----------
 insert into storage.buckets (id, name, public)
 values ('foto', 'foto', true)
 on conflict (id) do update set public = true;
