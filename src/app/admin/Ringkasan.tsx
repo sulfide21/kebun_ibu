@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { awalBulanWIB, rupiah } from "@/lib/format";
-import TombolBagikan from "@/components/TombolBagikan";
-import type { Listing, PesananDenganListing } from "@/lib/types";
+import type { PesananDenganListing } from "@/lib/types";
 
 /** Harga yang benar-benar terjadi pada satu pesanan. */
 function hargaAkhir(p: PesananDenganListing): number {
@@ -22,7 +21,7 @@ export default async function Ringkasan() {
   const awalBulanIni = awalBulanWIB(0);
   const awalBulanLalu = awalBulanWIB(1);
 
-  const [baru, menunggu, tersedia, selesai, listingTerbaru] = await Promise.all([
+  const [baru, menunggu, tersedia, selesai] = await Promise.all([
     supabase
       .from("pesanan")
       .select("id", { count: "exact", head: true })
@@ -40,13 +39,6 @@ export default async function Ringkasan() {
       .select("*, listings(id, judul, harga, satuan, status)")
       .eq("status", "selesai")
       .gte("diputuskan_at", awalBulanLalu),
-    supabase
-      .from("listings")
-      .select("*")
-      .eq("status", "tersedia")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
   ]);
 
   const semuaSelesai = (selesai.data ?? []) as PesananDenganListing[];
@@ -60,7 +52,6 @@ export default async function Ringkasan() {
   const totalBulanIni = bulanIni.reduce((j, p) => j + hargaAkhir(p), 0);
   const rataIni = rataRata(bulanIni);
   const rataLalu = rataRata(bulanLalu);
-  const terbaru = listingTerbaru.data as Listing | null;
 
   const jumlahBaru = baru.count ?? 0;
 
@@ -109,16 +100,12 @@ export default async function Ringkasan() {
         >
           Pasang barang
         </Link>
-        {terbaru ? (
-          <TombolBagikan listing={terbaru} />
-        ) : (
-          <Link
-            href="/admin/listing"
-            className="flex min-h-13 items-center justify-center rounded-full border-2 border-daun-tua px-5 font-bold text-daun-tua"
-          >
-            Lihat semua barang
-          </Link>
-        )}
+        <Link
+          href="/admin/listing"
+          className="flex min-h-13 items-center justify-center rounded-full border-2 border-daun-tua px-5 font-bold text-daun-tua"
+        >
+          Lihat semua barang
+        </Link>
       </div>
     </section>
   );

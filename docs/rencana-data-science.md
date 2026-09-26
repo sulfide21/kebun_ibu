@@ -209,3 +209,81 @@ Dua pilihan, keduanya jalan:
 
 Mulai dari Vercel cron. Pindah ke Airflow kalau memang mau ditunjukkan sebagai
 pipeline yang utuh.
+
+---
+
+## 11. Keputusan: saran harga hanya untuk Ibu dan Bapak
+
+**Tanggal keputusan:** 26 September 2026
+
+Seluruh hasil analisis — harga pasar, selisih terhadap pasar, ramalan —
+**hanya muncul di `/admin`**, tidak pernah di halaman yang dibuka keluarga.
+
+### 11.1 Alasannya bukan cuma privasi
+
+Kalau keluarga bisa melihat "harga pasar Rp 18.000" dan "kebun ini biasanya
+menjual 12% di atas pasar", angka itu langsung jadi alat menawar:
+
+> "Di pasar cuma 18 ribu kok, kenapa di sini 20 ribu?"
+
+Padahal harga pasar nasional memang bukan harga barang ini — mutunya beda,
+antarnya beda, dan itu sudah diakui sebagai batasan di bagian 7. Menaruh
+angka itu di halaman publik berarti memberi bantahan setengah benar kepada
+setiap penawar, dan yang dirugikan Ibu dan Bapak sendiri.
+
+Alat ini dibuat supaya **yang menjual** punya acuan. Memberikannya ke kedua
+pihak sekaligus justru menghapus gunanya.
+
+### 11.2 Menyembunyikan halaman TIDAK cukup
+
+Ini bagian yang mudah salah. `NEXT_PUBLIC_SUPABASE_ANON_KEY` ikut terkirim ke
+setiap pengunjung — memang begitu seharusnya. Artinya siapa pun yang membuka
+situs ini bisa menanyakan isi tabel mana pun **langsung ke Supabase**, tanpa
+lewat halaman yang kita buat.
+
+Jadi kalau `harga_pasar` dan `ramalan_harga` dibuat tanpa aturan, data itu
+terbuka untuk umum walaupun tidak ada satu pun halaman yang menampilkannya.
+Persis masalah yang dulu ditemukan di tabel `pesanan`: yang menutup bukan
+tampilannya, tapi RLS dan GRANT di database.
+
+**Yang wajib ada saat tabelnya dibuat:**
+
+```sql
+-- Sama persis polanya dengan tabel pesanan.
+alter table public.harga_pasar   enable row level security;
+alter table public.ramalan_harga enable row level security;
+
+revoke all on public.harga_pasar   from anon, authenticated;
+revoke all on public.ramalan_harga from anon, authenticated;
+
+grant select on public.harga_pasar   to authenticated;
+grant select on public.ramalan_harga to authenticated;
+
+create policy "harga_pasar_lihat_pengelola" on public.harga_pasar
+  for select to authenticated using (public.is_pengelola());
+
+create policy "ramalan_lihat_pengelola" on public.ramalan_harga
+  for select to authenticated using (public.is_pengelola());
+```
+
+Tidak ada policy `insert` untuk siapa pun. Yang mengisi tabel ini adalah
+skrip ingest memakai **service role key**, yang menembus RLS dan hanya ada di
+GitHub Actions — tidak pernah di browser.
+
+**Cara mengujinya** (jangan percaya begitu saja, ini yang dulu ketahuan
+bocor lewat pengujian, bukan lewat membaca kode):
+
+```bash
+curl "$SUPABASE_URL/rest/v1/harga_pasar?select=*" \
+  -H "apikey: $ANON_KEY"
+# harus menjawab: permission denied for table harga_pasar
+```
+
+### 11.3 Yang tetap boleh dilihat keluarga
+
+Tidak ada. Halaman publik isinya tetap seperti sekarang: foto, harga yang
+sudah diputuskan Ibu, keterangan, dan tombol pesan atau nawar.
+
+Harga yang dipasang memang hasil dari saran sistem ini — tapi yang sampai ke
+keluarga cuma **angka akhirnya**, tanpa perhitungan di belakangnya. Sama
+seperti harga di warung: yang dipajang harganya, bukan margin pemiliknya.

@@ -147,9 +147,16 @@ persis di minggu sebelum demo.
    Facebook, Telegram, apa saja yang terpasang) — pilih grup keluarga, kirim.
    Di laptop, teksnya langsung tersalin dan tinggal ditempel.
 3. Penawaran masuk ke **Kotak masuk**.
-4. **Terima** yang dipilih. Dua centang muncul, keduanya sudah tercentang:
-   tandai barang jadi "sudah laku", dan tolak penawaran lain. Boleh dilepas
-   kalau mau menjual sisanya atau menyimpan penawar cadangan.
+4. **Terima** yang dipilih. Dua centang muncul, keduanya **kosong**, dan
+   sengaja dibiarkan kosong supaya tidak ada yang berubah tanpa disadari:
+
+   - **Tandai barang jadi "sudah laku"** - barangnya hilang dari halaman
+     depan dan tidak bisa dipesan lagi. Centang kalau memang sudah habis.
+   - **Tolak penawaran lain untuk barang ini** - penawaran orang lain yang
+     masih "baru" ikut dibatalkan, supaya Kotak masuk bersih. Biarkan
+     kosong kalau mau menyimpan penawar cadangan.
+
+   Kalau barangnya cuma satu dan sudah terjual, centang keduanya.
 5. Tekan **Hubungi lewat WhatsApp** untuk mengabari yang menang.
 6. Setelah diambil dan dibayar → **Sudah diambil & lunas**. Kalau tidak jadi
    datang → **Tidak jadi ambil**.
@@ -235,6 +242,7 @@ Bukan karena lupa — ini keputusan, dan alasannya ada di
 supabase/migrations/       tabel, aturan RLS, fungsi terima_pesanan
 supabase/config.toml       pengaturan Supabase lokal (Docker)
 src/lib/                   validasi, format rupiah/WIB, klien Supabase, email
+src/components/            tombol Bagikan, kotak pencarian
 src/app/page.tsx           beranda (daftar barang)
 src/app/l/[id]/            halaman barang + form pesan/nawar
 src/app/admin/             kotak masuk, barang, riwayat, pengaturan

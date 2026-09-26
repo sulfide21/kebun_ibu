@@ -25,8 +25,12 @@ export default function KartuPesanan({
 }) {
   const [menunggu, mulai] = useTransition();
   const [konfirmasi, setKonfirmasi] = useState(false);
-  const [tandaiLaku, setTandaiLaku] = useState(true);
-  const [tolakLain, setTolakLain] = useState(true);
+  // Sengaja mulai kosong. Dua centang ini mengubah hal lain di luar
+  // pesanan yang sedang dibuka - satu menutup barangnya dari halaman
+  // depan, satu membatalkan penawaran orang lain. Yang begitu harus
+  // dipilih sendiri, bukan ikut terbawa karena sudah tercentang.
+  const [tandaiLaku, setTandaiLaku] = useState(false);
+  const [tolakLain, setTolakLain] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
 
   const harga =

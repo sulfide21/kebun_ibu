@@ -2,7 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { urutkanListing } from "@/lib/foto";
 import type { ListingLengkap } from "@/lib/types";
-import BarisListing from "./BarisListing";
+import DaftarBarangAdmin from "./DaftarBarangAdmin";
 
 export const revalidate = 0;
 
@@ -17,9 +17,9 @@ export default async function KelolaListing() {
     supabase.from("pesanan").select("listing_id"),
   ]);
 
-  const hitung = new Map<string, number>();
+  const hitung: Record<string, number> = {};
   for (const p of pesanan ?? []) {
-    hitung.set(p.listing_id, (hitung.get(p.listing_id) ?? 0) + 1);
+    hitung[p.listing_id] = (hitung[p.listing_id] ?? 0) + 1;
   }
 
   const daftar = urutkanListing((listings ?? []) as ListingLengkap[]);
@@ -55,13 +55,7 @@ export default async function KelolaListing() {
           </Link>
         </div>
       ) : (
-        <ul className="grid gap-4">
-          {daftar.map((l) => (
-            <li key={l.id}>
-              <BarisListing listing={l} jumlahPesanan={hitung.get(l.id) ?? 0} />
-            </li>
-          ))}
-        </ul>
+        <DaftarBarangAdmin daftar={daftar} hitung={hitung} />
       )}
     </>
   );
