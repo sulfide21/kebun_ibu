@@ -76,6 +76,28 @@ create table if not exists public.pengaturan (
 );
 insert into public.pengaturan (id) values (1) on conflict (id) do nothing;
 
+-- Daftar siapa yang boleh mengelola. Punya akun BUKAN berarti pengelola.
+--
+-- Tanpa tabel ini, semua aturan hanya memeriksa "sudah login atau belum",
+-- padahal Supabase mengizinkan siapa saja mendaftar akun sendiri ke proyek
+-- ini. Artinya orang asing tinggal daftar, lalu langsung bisa membaca nama
+-- dan nomor WhatsApp seluruh keluarga.
+create table if not exists public.pengelola (
+  user_id   uuid primary key references auth.users(id) on delete cascade,
+  nama      text not null default '',
+  dibuat_at timestamptz not null default now()
+);
+
+-- Akun yang sudah ada sekarang langsung dijadikan pengelola, supaya
+-- Ibu dan Bapak tidak terkunci di luar saat berkas ini dijalankan.
+-- Untuk menambah orang nanti: buat akunnya dulu di Authentication > Users,
+-- lalu jalankan
+--   insert into public.pengelola (user_id, nama)
+--   select id, 'Nama' from auth.users where email = 'alamat@email';
+insert into public.pengelola (user_id)
+select id from auth.users
+on conflict (user_id) do nothing;
+
 -- ---------- 2. HAK AKSES TABEL (GRANT) ----------
 -- Ada DUA lapisan yang menentukan sebuah tabel bisa dipakai lewat API:
 --
@@ -100,6 +122,7 @@ revoke all on public.listings     from anon, authenticated;
 revoke all on public.listing_foto from anon, authenticated;
 revoke all on public.pesanan      from anon, authenticated;
 revoke all on public.pengaturan   from anon, authenticated;
+revoke all on public.pengelola    from anon, authenticated;
 
 grant usage on schema public to anon, authenticated;
 
@@ -117,28 +140,58 @@ grant update                         on public.pengaturan   to authenticated;
 grant insert                         on public.pesanan      to anon;
 grant select, insert, update, delete on public.pesanan      to authenticated;
 
--- ---------- 3. ROW LEVEL SECURITY ----------
+-- ---------- 3. SIAPA PENGELOLA ----------
+-- Dipakai semua aturan di bawah. SECURITY DEFINER supaya bisa membaca
+-- tabel pengelola tanpa memicu pemeriksaan RLS yang berputar-putar.
+-- search_path dikunci: tanpa itu, isi fungsi bisa diarahkan ke tabel palsu.
+
+create or replace function public.is_pengelola()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $ip$
+  select exists (
+    select 1 from public.pengelola where user_id = auth.uid()
+  );
+$ip$;
+
+revoke all on function public.is_pengelola() from public, anon;
+grant execute on function public.is_pengelola() to authenticated;
+
+-- ---------- 4. ROW LEVEL SECURITY ----------
 -- Kunci utama keamanan situs ini. Anon key ikut terkirim ke browser dan
 -- memang bersifat publik; RLS yang menentukan apa yang boleh dilakukan.
+--
+-- Perhatikan: aturan di bawah memeriksa is_pengelola(), BUKAN sekadar
+-- "sudah login". Punya akun tidak memberi hak apa-apa.
 
 alter table public.listings     enable row level security;
 alter table public.listing_foto enable row level security;
 alter table public.pesanan      enable row level security;
 alter table public.pengaturan   enable row level security;
+alter table public.pengelola    enable row level security;
+
+-- Tidak ada satu pun policy untuk pengelola: artinya tabel ini hanya bisa
+-- disentuh lewat SQL Editor atau service_role. Daftar pengelola tidak
+-- boleh bisa diubah dari dalam aplikasi.
 
 drop policy if exists listings_baca_publik  on public.listings;
 drop policy if exists listings_kelola_admin on public.listings;
 create policy listings_baca_publik  on public.listings
   for select to anon, authenticated using (true);
 create policy listings_kelola_admin on public.listings
-  for all to authenticated using (true) with check (true);
+  for all to authenticated
+  using (public.is_pengelola()) with check (public.is_pengelola());
 
 drop policy if exists foto_baca_publik  on public.listing_foto;
 drop policy if exists foto_kelola_admin on public.listing_foto;
 create policy foto_baca_publik  on public.listing_foto
   for select to anon, authenticated using (true);
 create policy foto_kelola_admin on public.listing_foto
-  for all to authenticated using (true) with check (true);
+  for all to authenticated
+  using (public.is_pengelola()) with check (public.is_pengelola());
 
 -- PESANAN: publik hanya boleh MENULIS, tidak boleh membaca.
 -- Tanpa ini, siapa pun yang punya link bisa menarik daftar nama dan
@@ -156,16 +209,18 @@ create policy pesanan_kirim_publik on public.pesanan
     )
   );
 create policy pesanan_kelola_admin on public.pesanan
-  for all to authenticated using (true) with check (true);
+  for all to authenticated
+  using (public.is_pengelola()) with check (public.is_pengelola());
 
 drop policy if exists pengaturan_baca_publik on public.pengaturan;
 drop policy if exists pengaturan_ubah_admin  on public.pengaturan;
 create policy pengaturan_baca_publik on public.pengaturan
   for select to anon, authenticated using (true);
 create policy pengaturan_ubah_admin  on public.pengaturan
-  for update to authenticated using (true) with check (true);
+  for update to authenticated
+  using (public.is_pengelola()) with check (public.is_pengelola());
 
--- ---------- 4. TERIMA PESANAN (anti dua pemenang) ----------
+-- ---------- 5. TERIMA PESANAN (anti dua pemenang) ----------
 -- Ibu dan Bapak bisa membuka halaman yang sama di HP masing-masing.
 -- Fungsi ini mengunci baris listing lebih dulu, jadi hanya satu
 -- penawaran yang bisa menang untuk satu listing.
@@ -176,11 +231,22 @@ create or replace function public.terima_pesanan(
   p_tolak_lain  boolean default true
 ) returns json
 language plpgsql
+-- Dikunci supaya isi fungsi tidak bisa diarahkan ke tabel palsu lewat
+-- search_path yang diatur pemanggilnya.
+set search_path = public, pg_temp
 as $fn$
 declare
   v_listing uuid;
   v_lain    uuid;
 begin
+  -- Penjaga tersendiri. Tanpa ini, orang yang punya akun tapi bukan
+  -- pengelola akan dapat jawaban "pesanan sudah diproses" yang
+  -- menyesatkan, karena RLS diam-diam menyaring barisnya.
+  if not public.is_pengelola() then
+    return json_build_object('ok', false,
+      'pesan', 'Akun ini tidak berhak menerima penawaran.');
+  end if;
+
   select listing_id into v_listing from public.pesanan where id = p_id;
   if v_listing is null then
     return json_build_object('ok', false, 'pesan', 'Pesanan tidak ditemukan.');
@@ -222,7 +288,7 @@ $fn$;
 revoke all on function public.terima_pesanan(uuid, boolean, boolean) from public, anon;
 grant execute on function public.terima_pesanan(uuid, boolean, boolean) to authenticated;
 
--- ---------- 5. STORAGE (foto) ----------
+-- ---------- 6. STORAGE (foto) ----------
 insert into storage.buckets (id, name, public)
 values ('foto', 'foto', true)
 on conflict (id) do update set public = true;
@@ -230,9 +296,20 @@ on conflict (id) do update set public = true;
 drop policy if exists foto_lihat_semua  on storage.objects;
 drop policy if exists foto_unggah_admin on storage.objects;
 drop policy if exists foto_hapus_admin  on storage.objects;
-create policy foto_lihat_semua on storage.objects
-  for select to anon, authenticated using (bucket_id = 'foto');
+
+-- SENGAJA TIDAK ADA policy select untuk anon.
+--
+-- Bucket ini publik, jadi foto tetap bisa dibuka siapa saja lewat alamat
+-- langsungnya - itu memang dikehendaki, dan tidak butuh policy sama
+-- sekali. Yang dihilangkan adalah kemampuan MENDAFTAR isi bucket, yaitu
+-- melihat seluruh berkas yang pernah diunggah, termasuk milik barang
+-- yang sudah dihapus. Orang perlu tahu alamat fotonya untuk membukanya.
+create policy foto_lihat_pengelola on storage.objects
+  for select to authenticated
+  using (bucket_id = 'foto' and public.is_pengelola());
 create policy foto_unggah_admin on storage.objects
-  for insert to authenticated with check (bucket_id = 'foto');
+  for insert to authenticated
+  with check (bucket_id = 'foto' and public.is_pengelola());
 create policy foto_hapus_admin on storage.objects
-  for delete to authenticated using (bucket_id = 'foto');
+  for delete to authenticated
+  using (bucket_id = 'foto' and public.is_pengelola());

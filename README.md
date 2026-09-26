@@ -49,6 +49,10 @@ Supabase) di `localhost:54323`.
 4. **Buat akun Ibu dan Bapak:** buka <http://127.0.0.1:54323> →
    **Authentication > Add user** → isi email dan kata sandi.
 
+   Lalu jadikan keduanya pengelola (lihat
+   [Siapa yang boleh mengelola](#siapa-yang-boleh-mengelola) di bawah).
+   **Punya akun saja tidak cukup.**
+
 5. **Jalankan situsnya:**
 
    ```bash
@@ -75,7 +79,10 @@ npx supabase db reset      # kosongkan dan pasang ulang skema
    [`supabase/migrations/20260921000000_skema_awal.sql`](supabase/migrations/20260921000000_skema_awal.sql),
    tempel, tekan **Run**. Aman dijalankan berulang kali.
 3. **Authentication > Users > Add user** untuk Ibu dan Bapak, centang
-   **Auto Confirm User**.
+   **Auto Confirm User**. Lalu jadikan keduanya pengelola — lihat bagian
+   berikutnya. **Punya akun saja tidak cukup.**
+4. **Authentication > Sign In / Providers > Email**: matikan **Allow new
+   users to sign up**, dan nyalakan **Leaked password protection**.
 4. Isi `.env.local` dari **Project Settings > API**: Project URL, anon key,
    service_role key.
 
@@ -139,6 +146,39 @@ persis di minggu sebelum demo.
 nomor WhatsApp. Selesai. Tidak ada pendaftaran.
 
 ---
+
+## Siapa yang boleh mengelola
+
+Punya akun di proyek ini **tidak** memberi hak apa pun. Yang menentukan
+adalah tabel `pengelola`.
+
+Alasannya: Supabase mengizinkan siapa saja mendaftar akun sendiri ke sebuah
+proyek. Kalau aturannya cuma memeriksa "sudah login atau belum", orang asing
+tinggal mendaftar lalu langsung bisa membaca nama dan nomor WhatsApp seluruh
+keluarga.
+
+**Menambah pengelola baru** — buat akunnya dulu di
+**Authentication > Users > Add user**, lalu jalankan di SQL Editor:
+
+```sql
+insert into public.pengelola (user_id, nama)
+select id, 'Ibu' from auth.users where email = 'alamat@email.com'
+on conflict (user_id) do nothing;
+```
+
+**Mencabut hak seseorang** tanpa menghapus akunnya:
+
+```sql
+delete from public.pengelola
+where user_id = (select id from auth.users where email = 'alamat@email.com');
+```
+
+Tabel `pengelola` sengaja tidak punya policy apa pun, jadi hanya bisa diubah
+lewat SQL Editor. Daftar ini tidak boleh bisa diubah dari dalam aplikasi.
+
+> **Urutannya penting.** Berkas migrasi menjadikan semua akun yang *sudah
+> ada* sebagai pengelola. Akun yang dibuat **setelah** migrasi dijalankan
+> tidak ikut, dan harus ditambahkan dengan perintah di atas.
 
 ## Catatan keamanan
 
