@@ -4,7 +4,7 @@ import type { Listing, PesananDenganListing } from "./types";
 export function alamatSitus(): string {
   return (
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "http://localhost:3000"
+    "https://kebun-ibu.vercel.app"
   );
 }
 
