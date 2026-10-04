@@ -1,6 +1,8 @@
 export type JenisBuah = "mangga" | "pisang" | "lainnya";
 export type StatusListing = "segera" | "tersedia" | "sudah_laku";
-export type JenisPesanan = "pesan" | "nawar";
+export type ModeListing = "jual" | "lelang";
+/** "nawar" hanya ada di riwayat lama; kiriman baru selalu "pesan" atau "lelang". */
+export type JenisPesanan = "pesan" | "nawar" | "lelang";
 export type StatusPesanan =
   | "baru"
   | "diterima"
@@ -16,6 +18,9 @@ export type Listing = {
   harga: number;
   satuan: string;
   status: StatusListing;
+  mode: ModeListing;
+  /** Wajib pada mode lelang. Pada mode lelang, `harga` adalah harga minimum. */
+  batas_waktu: string | null;
   created_at: string;
 };
 
@@ -47,7 +52,10 @@ export type Pesanan = {
 };
 
 export type PesananDenganListing = Pesanan & {
-  listings: Pick<Listing, "id" | "judul" | "harga" | "satuan" | "status"> | null;
+  listings: Pick<
+    Listing,
+    "id" | "judul" | "harga" | "satuan" | "status" | "mode" | "batas_waktu"
+  > | null;
 };
 
 export type Pengaturan = {
