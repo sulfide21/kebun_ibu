@@ -75,9 +75,12 @@ npx supabase db reset      # kosongkan dan pasang ulang skema
 
 1. Daftar di [supabase.com](https://supabase.com), buat proyek baru, region
    **Southeast Asia (Singapore)**.
-2. Buka **SQL Editor**, salin seluruh isi
+2. Buka **SQL Editor**, jalankan **kedua** berkas migrasi sesuai urutan nama
+   berkasnya: salin seluruh isi
    [`supabase/migrations/20260921000000_skema_awal.sql`](supabase/migrations/20260921000000_skema_awal.sql),
-   tempel, tekan **Run**. Aman dijalankan berulang kali.
+   tempel, tekan **Run**; lalu lakukan hal yang sama untuk
+   [`supabase/migrations/20261004000000_lelang.sql`](supabase/migrations/20261004000000_lelang.sql).
+   Aman dijalankan berulang kali, asal urutannya tetap begitu.
 3. **Authentication > Users > Add user** untuk Ibu dan Bapak, centang
    **Auto Confirm User**. Lalu jadikan keduanya pengelola — lihat bagian
    berikutnya. **Punya akun saja tidak cukup.**
@@ -241,10 +244,10 @@ Bukan karena lupa — ini keputusan, dan alasannya ada di
 ```
 supabase/migrations/       tabel, aturan RLS, fungsi terima_pesanan
 supabase/config.toml       pengaturan Supabase lokal (Docker)
-src/lib/                   validasi, format rupiah/WIB, klien Supabase, email
+src/lib/                   validasi, format rupiah/WITA, klien Supabase, email
 src/components/            tombol Bagikan, kotak pencarian
 src/app/page.tsx           beranda (daftar barang)
-src/app/l/[id]/            halaman barang + form pesan/nawar
+src/app/l/[id]/            halaman barang + form pesan/lelang
 src/app/admin/             kotak masuk, barang, riwayat, pengaturan
 src/app/api/keepalive/     cron penjaga database
 ```

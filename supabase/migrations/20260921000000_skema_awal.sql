@@ -2,6 +2,7 @@
 -- Kebun Ibu - skema database
 -- Jalankan seluruh isi file ini di Supabase Dashboard > SQL Editor.
 -- Aman dijalankan ulang berkali-kali.
+-- Kalau berkas ini dijalankan ulang, jalankan ulang juga 20261004000000_lelang.sql sesudahnya, karena berkas ini menimpa aturan kirim pesanan dan fungsi terima_pesanan dengan versi lama.
 -- =====================================================================
 
 -- ---------- 1. TABEL ----------
