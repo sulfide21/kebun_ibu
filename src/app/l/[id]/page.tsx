@@ -38,7 +38,10 @@ export default async function DetailListing({
     ? lelangTerbuka(listing, sekarang)
     : listing.status === "tersedia";
   const lelangDitutup = lelang && listing.status === "tersedia" && !bisaDibeli;
-  const tertinggi = lelang
+  // Lelang yang sudah laku tidak perlu harga lagi; kotak "sudah laku" di
+  // bawah sudah cukup.
+  const tampilHargaLelang = lelang && listing.status !== "sudah_laku";
+  const tertinggi = tampilHargaLelang
     ? ((await ambilTertinggiKemarin([listing.id], sekarang))[listing.id] ?? null)
     : null;
 
@@ -81,7 +84,7 @@ export default async function DetailListing({
           {listing.judul}
         </h1>
 
-        {lelang ? (
+        {tampilHargaLelang ? (
           <HargaLelang
             hargaMinimum={listing.harga}
             tertinggi={tertinggi}
@@ -89,7 +92,7 @@ export default async function DetailListing({
             satuan={listing.satuan}
             sekarang={sekarang}
           />
-        ) : (
+        ) : lelang ? null : (
           <p className="angka mt-4 text-4xl font-extrabold text-emas-tua">
             {rupiah(listing.harga)}
             <span className="ml-2 text-xl font-semibold text-daun">
