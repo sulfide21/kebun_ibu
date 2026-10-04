@@ -43,6 +43,10 @@ keterangan bebas, dan statusnya cukup "tersedia" atau "sudah laku".
 
 ### 3.1 Antrean penawaran, bukan lelang terbuka
 
+> **Diganti 4 Oktober 2026.** Situs sekarang punya mode lelang dengan batas
+> waktu dan harga tertinggi yang tampil sekali sehari. Ibu tetap memilih
+> pemenangnya sendiri. Lihat `docs/superpowers/specs/2026-10-04-lelang-design.md`.
+
 **Dipilih:** pembeli mengirim penawaran yang hanya terlihat oleh penjual.
 Penjual memilih siapa yang dapat.
 
@@ -179,7 +183,7 @@ Ini keputusan lingkup, bukan kelalaian:
 - Pembayaran online dan unggah bukti transfer — uang tetap tunai antar keluarga
 - Perhitungan stok per kilogram — penjual yang menentukan, bukan sistem
 - Akun dan halaman riwayat untuk pembeli
-- Lelang terbuka dengan papan peringkat
+- Papan peringkat penawar (lelang sekarang ada, tapi daftar penawarnya tetap hanya dilihat Ibu)
 - Mode offline/PWA, antrean ulang email gagal, jejak audit
 
 ## 9. Teknologi
