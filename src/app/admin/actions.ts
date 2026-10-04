@@ -53,18 +53,41 @@ export async function ubahStatusPesanan(
   status: Extract<StatusPesanan, "ditolak" | "selesai" | "batal" | "baru">,
 ): Promise<HasilAksi> {
   const supabase = await supabaseServer();
-  const { error } = await supabase
+  const sekarang = new Date().toISOString();
+  const { data: baris, error } = await supabase
     .from("pesanan")
     .update({
       status,
-      diputuskan_at: status === "baru" ? null : new Date().toISOString(),
+      diputuskan_at: status === "baru" ? null : sekarang,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("listing_id, jenis")
+    .single();
 
   if (error) {
     console.error("[admin] ubah status gagal:", error.message);
     return { ok: false, pesan: "Gagal mengubah status." };
   }
+
+  // Lelang punya cadangan. Penawar lain baru ditolak setelah pemenangnya
+  // benar-benar lunas; kalau pemenangnya batal, barangnya dibuka lagi
+  // supaya Ibu bisa memilih penawar berikutnya.
+  if (baris?.jenis === "lelang" && baris.listing_id) {
+    if (status === "selesai") {
+      await supabase
+        .from("pesanan")
+        .update({ status: "ditolak", diputuskan_at: sekarang })
+        .eq("listing_id", baris.listing_id)
+        .eq("jenis", "lelang")
+        .eq("status", "baru");
+    } else if (status === "batal") {
+      await supabase
+        .from("listings")
+        .update({ status: "tersedia" })
+        .eq("id", baris.listing_id);
+    }
+  }
+
   segarkan();
   return { ok: true };
 }
@@ -73,6 +96,67 @@ export async function hapusPesanan(id: string): Promise<HasilAksi> {
   const supabase = await supabaseServer();
   const { error } = await supabase.from("pesanan").delete().eq("id", id);
   if (error) return { ok: false, pesan: "Gagal menghapus pesanan." };
+  segarkan();
+  return { ok: true };
+}
+
+// --------------------------- LELANG ---------------------------
+// Semua lewat klien sesi biasa: RLS pesanan_kelola_admin yang menjaga
+// bahwa hanya pengelola yang bisa menjalankannya.
+
+async function ubahTawaran(
+  listingId: string,
+  dari: StatusPesanan,
+  ke: StatusPesanan,
+  noWa?: string,
+): Promise<HasilAksi> {
+  const supabase = await supabaseServer();
+  let query = supabase
+    .from("pesanan")
+    .update({
+      status: ke,
+      diputuskan_at: ke === "baru" ? null : new Date().toISOString(),
+    })
+    .eq("listing_id", listingId)
+    .eq("jenis", "lelang")
+    .eq("status", dari);
+  if (noWa) query = query.eq("no_wa", noWa);
+
+  const { error } = await query;
+  if (error) {
+    console.error("[admin] ubah tawaran gagal:", error.message);
+    return { ok: false, pesan: "Gagal mengubah tawaran." };
+  }
+  segarkan();
+  return { ok: true };
+}
+
+/** Menolak SEMUA tawaran orang ini untuk barang ini, bukan hanya yang
+ *  terbaru - kalau tidak, tawaran lamanya muncul lagi di daftar. */
+export async function tolakPenawar(listingId: string, noWa: string): Promise<HasilAksi> {
+  return ubahTawaran(listingId, "baru", "ditolak", noWa);
+}
+
+/** Lelang tetap terbuka sampai batas waktunya; pemenang tidak ikut ditolak. */
+export async function tolakSemuaTawaran(listingId: string): Promise<HasilAksi> {
+  return ubahTawaran(listingId, "baru", "ditolak");
+}
+
+export async function batalkanTolak(listingId: string, noWa: string): Promise<HasilAksi> {
+  return ubahTawaran(listingId, "ditolak", "baru", noWa);
+}
+
+export async function tutupLelangSekarang(listingId: string): Promise<HasilAksi> {
+  const supabase = await supabaseServer();
+  const { error } = await supabase
+    .from("listings")
+    .update({ batas_waktu: new Date().toISOString() })
+    .eq("id", listingId)
+    .eq("mode", "lelang");
+  if (error) {
+    console.error("[admin] tutup lelang gagal:", error.message);
+    return { ok: false, pesan: "Gagal menutup lelang." };
+  }
   segarkan();
   return { ok: true };
 }

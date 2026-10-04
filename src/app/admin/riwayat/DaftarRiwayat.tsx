@@ -9,14 +9,8 @@ import {
   tampilkanNoWa,
   tanggalSingkatWita,
 } from "@/lib/format";
+import { hargaAkhir } from "@/lib/lelang";
 import type { PesananDenganListing } from "@/lib/types";
-
-/** Harga yang benar-benar terjadi: tawaran kalau menawar, kalau tidak
- *  harga yang dipasang saat pesanan dibuat. */
-function hargaAkhir(p: PesananDenganListing): number {
-  if (p.jenis === "nawar" && p.harga_tawar !== null) return p.harga_tawar;
-  return p.harga_listing ?? p.listings?.harga ?? 0;
-}
 
 export default function DaftarRiwayat({
   selesai,
@@ -39,7 +33,7 @@ export default function DaftarRiwayat({
         p.catatan,
         bulanWita(p.diputuskan_at ?? p.created_at),
         tanggalSingkatWita(p.diputuskan_at ?? p.created_at),
-        p.jenis === "nawar" ? "nawar" : "sesuai harga",
+        p.jenis === "pesan" ? "sesuai harga" : p.jenis,
         String(hargaAkhir(p)),
         rupiah(hargaAkhir(p)),
       ),
@@ -124,7 +118,7 @@ export default function DaftarRiwayat({
                           <p className="truncate text-base text-daun">
                             {p.nama} ·{" "}
                             {tanggalSingkatWita(p.diputuskan_at ?? p.created_at)}
-                            {p.jenis === "nawar" ? " · nawar" : ""}
+                            {p.jenis === "pesan" ? "" : ` · ${p.jenis}`}
                           </p>
                         </div>
                         <p className="angka shrink-0 text-lg font-extrabold">

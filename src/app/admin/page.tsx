@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { LABEL_STATUS_PESANAN, type PesananDenganListing } from "@/lib/types";
+import { ringkasLelang } from "@/lib/lelang";
+import KartuLelang from "./KartuLelang";
 import KartuPesanan from "./KartuPesanan";
 import Ringkasan from "./Ringkasan";
 
@@ -23,7 +25,7 @@ export default async function KotakMasuk({
 
   let query = supabase
     .from("pesanan")
-    .select("*, listings(id, judul, harga, satuan, status)")
+    .select("*, listings(id, judul, harga, satuan, status, mode, batas_waktu)")
     .order("created_at", { ascending: false });
 
   if (status !== "semua") query = query.eq("status", status);
@@ -37,6 +39,9 @@ export default async function KotakMasuk({
   ]);
 
   const daftar = (pesanan ?? []) as PesananDenganListing[];
+  const lelang = ringkasLelang(daftar);
+  const biasa = daftar.filter((p) => p.jenis !== "lelang");
+  const sekarang = new Date();
 
   return (
     <>
@@ -88,13 +93,18 @@ export default async function KotakMasuk({
           </Link>
         </div>
       ) : (
-        <ul className="grid gap-4">
-          {daftar.map((p) => (
-            <li key={p.id}>
-              <KartuPesanan pesanan={p} />
-            </li>
+        <div className="grid gap-4">
+          {lelang.map((r) => (
+            <KartuLelang key={r.listing.id} ringkasan={r} sekarang={sekarang} />
           ))}
-        </ul>
+          <ul className="grid gap-4">
+            {biasa.map((p) => (
+              <li key={p.id}>
+                <KartuPesanan pesanan={p} />
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </>
   );

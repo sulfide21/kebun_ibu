@@ -1,13 +1,8 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { awalBulanWita, rupiah } from "@/lib/format";
+import { hargaAkhir } from "@/lib/lelang";
 import type { PesananDenganListing } from "@/lib/types";
-
-/** Harga yang benar-benar terjadi pada satu pesanan. */
-function hargaAkhir(p: PesananDenganListing): number {
-  if (p.jenis === "nawar" && p.harga_tawar !== null) return p.harga_tawar;
-  return p.harga_listing ?? p.listings?.harga ?? 0;
-}
 
 function rataRata(daftar: PesananDenganListing[]): number | null {
   if (daftar.length === 0) return null;

@@ -7,6 +7,7 @@ import {
   ubahStatusPesanan,
 } from "./actions";
 import { rupiah, tampilkanNoWa, waktuLalu } from "@/lib/format";
+import { hargaAkhir } from "@/lib/lelang";
 import { linkWa, pesanPenawaranDiterima } from "@/lib/wa";
 import { LABEL_STATUS_PESANAN, type PesananDenganListing } from "@/lib/types";
 
@@ -33,10 +34,7 @@ export default function KartuPesanan({
   const [tolakLain, setTolakLain] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
 
-  const harga =
-    pesanan.jenis === "nawar" && pesanan.harga_tawar !== null
-      ? pesanan.harga_tawar
-      : (pesanan.harga_listing ?? pesanan.listings?.harga ?? 0);
+  const harga = hargaAkhir(pesanan);
   const judul = pesanan.listings?.judul || pesanan.judul_snapshot;
 
   function jalankan(aksi: () => Promise<{ ok: boolean; pesan?: string }>) {
@@ -72,7 +70,7 @@ export default function KartuPesanan({
         <p className="angka text-3xl font-extrabold text-daun-tua">
           {rupiah(harga)}
           <span className="ml-2 text-base font-semibold text-daun">
-            {pesanan.jenis === "nawar" ? "nawar" : "sesuai harga"}
+            {pesanan.jenis === "pesan" ? "sesuai harga" : pesanan.jenis}
             {pesanan.listings?.satuan ? ` ${pesanan.listings.satuan}` : ""}
           </span>
         </p>
