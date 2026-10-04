@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import { rupiah } from "./format";
+import { lelangTerbuka } from "./lelang";
+import type { Listing } from "./types";
+
 /**
  * Nomor WhatsApp datang dalam banyak bentuk: 0812..., +62 812-3456,
  * 62812..., "0812 3456 7890". Link wa.me hanya jalan dengan 628123456789,
@@ -36,8 +40,8 @@ export const skemaPesanan = z
       .min(2, "Nama minimal 2 huruf.")
       .max(80, "Nama terlalu panjang."),
     no_wa: noWa,
-    jenis: z.enum(["pesan", "nawar"]),
-    // input HTML selalu string; kosong berarti tidak menawar
+    jenis: z.enum(["pesan", "lelang"]),
+    // input HTML selalu string; kosong berarti bukan tawaran lelang
     harga_tawar: z
       .string()
       .optional()
@@ -51,28 +55,45 @@ export const skemaPesanan = z
     alamat_web: z.string().max(0, "Terdeteksi sebagai bot.").optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.jenis === "nawar") {
-      if (data.harga_tawar === null) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["harga_tawar"],
-          message: "Isi harga yang ditawar.",
-        });
-      } else if (data.harga_tawar <= 0) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["harga_tawar"],
-          message: "Harga tawaran harus lebih dari 0.",
-        });
-      } else if (data.harga_tawar > 1_000_000_000) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["harga_tawar"],
-          message: "Harga tawaran tidak masuk akal.",
-        });
-      }
+    if (data.jenis !== "lelang") return;
+    if (data.harga_tawar === null) {
+      ctx.addIssue({ code: "custom", path: ["harga_tawar"], message: "Isi jumlah tawaran." });
+    } else if (data.harga_tawar <= 0) {
+      ctx.addIssue({ code: "custom", path: ["harga_tawar"], message: "Jumlah tawaran harus lebih dari 0." });
+    } else if (data.harga_tawar > 1_000_000_000) {
+      ctx.addIssue({ code: "custom", path: ["harga_tawar"], message: "Jumlah tawaran tidak masuk akal." });
     }
   });
+
+/**
+ * Pemeriksaan sebelum menyimpan. RLS di database memeriksa hal yang sama
+ * dan tetap jadi penjaga terakhir; yang ini supaya pembeli mendapat pesan
+ * yang jelas, bukan "gagal" yang membingungkan.
+ */
+export function cekKiriman(
+  listing: Pick<Listing, "mode" | "status" | "harga" | "batas_waktu">,
+  kiriman: { jenis: "pesan" | "lelang"; harga_tawar: number | null },
+  sekarang: Date,
+): { pesan?: string; error?: Record<string, string> } | null {
+  if (listing.status === "sudah_laku") return { pesan: "Maaf, barang ini sudah laku." };
+  if (listing.status !== "tersedia") return { pesan: "Barang ini belum dibuka." };
+
+  if (kiriman.jenis === "lelang") {
+    if (listing.mode !== "lelang") {
+      return { pesan: "Barang ini tidak sedang dilelang. Coba muat ulang halaman." };
+    }
+    if (!lelangTerbuka(listing, sekarang)) return { pesan: "Lelang sudah ditutup." };
+    if ((kiriman.harga_tawar ?? 0) < listing.harga) {
+      return { error: { harga_tawar: `Tawaran minimal ${rupiah(listing.harga)}.` } };
+    }
+    return null;
+  }
+
+  if (listing.mode !== "jual") {
+    return { pesan: "Barang ini sedang dilelang. Coba muat ulang halaman." };
+  }
+  return null;
+}
 
 export const skemaListing = z.object({
   jenis: z.enum(["mangga", "pisang", "lainnya"]),
