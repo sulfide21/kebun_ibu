@@ -58,13 +58,22 @@ describe("lelangTerbuka", () => {
 
 describe("tertinggiSebelum", () => {
   const batas = new Date("2026-10-07T16:00:00Z"); // 00.00 WITA tanggal 8
-  const baris = (listing_id: string | null, harga_tawar: number, created_at: string, status: Tawaran["status"] = "baru") =>
-    ({ listing_id, harga_tawar, created_at, status });
+  const baris = (
+    listing_id: string | null,
+    harga_tawar: number,
+    created_at: string,
+    status: Tawaran["status"] = "baru",
+    no_wa = "62811",
+  ) => ({ listing_id, no_wa, harga_tawar, created_at, status });
 
   it("mengambil tawaran tertinggi per barang sebelum batas", () => {
     expect(
       tertinggiSebelum(
-        [baris("a", 60000, KEMARIN), baris("a", 75000, KEMARIN), baris("b", 30000, KEMARIN)],
+        [
+          baris("a", 60000, KEMARIN, "baru", "62811"),
+          baris("a", 75000, KEMARIN, "baru", "62822"),
+          baris("b", 30000, KEMARIN, "baru", "62811"),
+        ],
         batas,
       ),
     ).toEqual({ a: 75000, b: 30000 });
@@ -78,9 +87,9 @@ describe("tertinggiSebelum", () => {
     expect(
       tertinggiSebelum(
         [
-          baris("a", 999_999_999, KEMARIN, "ditolak"),
-          baris("a", 120000, KEMARIN, "batal"),
-          baris("a", 60000, KEMARIN),
+          baris("a", 999_999_999, KEMARIN, "ditolak", "62899"),
+          baris("a", 120000, KEMARIN, "batal", "62811"),
+          baris("a", 60000, KEMARIN, "baru", "62822"),
         ],
         batas,
       ),
@@ -89,6 +98,31 @@ describe("tertinggiSebelum", () => {
 
   it("mengabaikan baris tanpa barang", () => {
     expect(tertinggiSebelum([baris(null, 60000, KEMARIN)], batas)).toEqual({});
+  });
+
+  it("salah ketik lalu dibetulkan: yang dihitung tawaran terbaru nomor itu", () => {
+    expect(
+      tertinggiSebelum(
+        [
+          baris("a", 1_200_000, "2026-10-07T02:00:00Z", "baru", "62811"),
+          baris("a", 120_000, "2026-10-07T03:00:00Z", "baru", "62811"),
+        ],
+        batas,
+      ),
+    ).toEqual({ a: 120_000 });
+  });
+
+  it("dua nomor: harga publik = yang lebih tinggi dari tawaran terbaru masing-masing", () => {
+    expect(
+      tertinggiSebelum(
+        [
+          baris("a", 200_000, "2026-10-07T01:00:00Z", "baru", "62811"),
+          baris("a", 90_000, "2026-10-07T02:00:00Z", "baru", "62811"),
+          baris("a", 100_000, "2026-10-07T01:30:00Z", "baru", "62822"),
+        ],
+        batas,
+      ),
+    ).toEqual({ a: 100_000 });
   });
 });
 
@@ -173,17 +207,51 @@ describe("ringkasLelang", () => {
   });
   const a = listing("a", "2026-10-10T06:00:00Z");
   const b = listing("b", "2026-10-09T06:00:00Z");
+  const tawar = (
+    listings: typeof a,
+    no_wa: string,
+    harga_tawar: number,
+    created_at: string,
+    status: Tawaran["status"] = "baru",
+  ) => ({ jenis: "lelang" as const, no_wa, harga_tawar, created_at, status, listings });
 
   it("satu ringkasan per lelang, diurutkan dari yang paling cepat ditutup", () => {
     const hasil = ringkasLelang([
-      { jenis: "lelang", no_wa: "62811", harga_tawar: 60000, listings: a },
-      { jenis: "lelang", no_wa: "62811", harga_tawar: 75000, listings: a },
-      { jenis: "lelang", no_wa: "62822", harga_tawar: 70000, listings: a },
-      { jenis: "lelang", no_wa: "62833", harga_tawar: 55000, listings: b },
-      { jenis: "pesan", no_wa: "62844", harga_tawar: null, listings: { ...a, id: "c", mode: "jual" as const } },
+      tawar(a, "62811", 60000, "2026-10-05T01:00:00Z"),
+      tawar(a, "62811", 75000, "2026-10-06T01:00:00Z"),
+      tawar(a, "62822", 70000, "2026-10-06T02:00:00Z"),
+      tawar(b, "62833", 55000, "2026-10-06T03:00:00Z"),
+      {
+        jenis: "pesan",
+        no_wa: "62844",
+        harga_tawar: null,
+        created_at: "2026-10-06T04:00:00Z",
+        status: "baru",
+        listings: { ...a, id: "c", mode: "jual" as const },
+      },
     ]);
     expect(hasil.map((r) => r.listing.id)).toEqual(["b", "a"]);
     expect(hasil[1]).toMatchObject({ jumlahPenawar: 2, tertinggi: 75000 });
+  });
+
+  it("tawaran yang dibetulkan dan tawaran yang ditolak tidak menggelembungkan angka", () => {
+    const hasil = ringkasLelang([
+      tawar(a, "62811", 1_200_000, "2026-10-05T01:00:00Z"),
+      tawar(a, "62811", 120_000, "2026-10-05T02:00:00Z"),
+      tawar(a, "62899", 999_999_999, "2026-10-05T03:00:00Z", "ditolak"),
+      tawar(a, "62822", 100_000, "2026-10-05T04:00:00Z"),
+    ]);
+    expect(hasil).toHaveLength(1);
+    expect(hasil[0]).toMatchObject({ jumlahPenawar: 2, tertinggi: 120_000 });
+  });
+
+  it("lelang yang semua tawarannya ditolak atau batal tetap punya kartu, tanpa angka", () => {
+    const hasil = ringkasLelang([
+      tawar(a, "62899", 1, "2026-10-05T03:00:00Z", "ditolak"),
+      tawar(a, "62811", 90000, "2026-10-05T04:00:00Z", "batal"),
+    ]);
+    expect(hasil).toHaveLength(1);
+    expect(hasil[0]).toMatchObject({ jumlahPenawar: 0, tertinggi: null });
   });
 });
 

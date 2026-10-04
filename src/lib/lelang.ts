@@ -28,21 +28,50 @@ export function lelangTerbuka(
   return sekarang.getTime() < new Date(listing.batas_waktu).getTime();
 }
 
-export type BarisHarga = Pick<Pesanan, "listing_id" | "harga_tawar" | "created_at" | "status">;
+export type BarisHarga = Pick<
+  Pesanan,
+  "listing_id" | "no_wa" | "harga_tawar" | "created_at" | "status"
+>;
+
+const ditolakAtauBatal = (b: { status: Pesanan["status"] }) =>
+  b.status === "ditolak" || b.status === "batal";
+
+/** Tawaran terbaru tiap nomor, dikelompokkan per barang. Tawaran baru
+ *  menggantikan yang lama, jadi salah ketik yang sudah dibetulkan tidak
+ *  ikut dihitung. */
+function terbaruTiapNomor<T extends { no_wa: string; created_at: string }>(
+  baris: T[],
+  kunciBarang: (b: T) => string,
+): Map<string, Map<string, T>> {
+  const perBarang = new Map<string, Map<string, T>>();
+  for (const b of baris) {
+    const kunci = kunciBarang(b);
+    const perNomor = perBarang.get(kunci) ?? new Map<string, T>();
+    const lama = perNomor.get(b.no_wa);
+    if (!lama || waktu(b) > waktu(lama)) perNomor.set(b.no_wa, b);
+    perBarang.set(kunci, perNomor);
+  }
+  return perBarang;
+}
 
 /**
  * Tawaran tertinggi per barang yang masuk sebelum `batas` (00.00 WITA
- * hari ini). Inilah satu-satunya angka lelang yang boleh dilihat publik.
- * Tawaran yang ditolak atau batal tidak dihitung, supaya tawaran iseng
- * yang sudah ditolak Ibu tidak tetap tampil sebagai harga tertinggi.
+ * hari ini), dihitung dari tawaran terbaru tiap nomor. Inilah
+ * satu-satunya angka lelang yang boleh dilihat publik. Tawaran yang
+ * ditolak atau batal tidak dihitung, supaya tawaran iseng yang sudah
+ * ditolak Ibu tidak tetap tampil sebagai harga tertinggi.
  */
 export function tertinggiSebelum(baris: BarisHarga[], batas: Date): Record<string, number> {
+  const terpakai = baris.filter(
+    (b): b is BarisHarga & { listing_id: string; harga_tawar: number } =>
+      b.listing_id !== null &&
+      b.harga_tawar !== null &&
+      !ditolakAtauBatal(b) &&
+      waktu(b) < batas.getTime(),
+  );
   const hasil: Record<string, number> = {};
-  for (const b of baris) {
-    if (!b.listing_id || b.harga_tawar === null) continue;
-    if (b.status === "ditolak" || b.status === "batal") continue;
-    if (waktu(b) >= batas.getTime()) continue;
-    hasil[b.listing_id] = Math.max(hasil[b.listing_id] ?? 0, b.harga_tawar);
+  for (const [listingId, perNomor] of terbaruTiapNomor(terpakai, (b) => b.listing_id)) {
+    hasil[listingId] = Math.max(...[...perNomor.values()].map((b) => b.harga_tawar));
   }
   return hasil;
 }
@@ -124,24 +153,39 @@ export type RingkasanLelang = {
   tertinggi: number | null;
 };
 
-/** Satu kartu per lelang di kotak masuk, paling cepat ditutup di atas. */
+/**
+ * Satu kartu per lelang di kotak masuk, paling cepat ditutup di atas.
+ * Angka tertinggi diambil dari tawaran terbaru tiap nomor; jumlah
+ * penawar menghitung nomor yang masih punya tawaran tidak ditolak/batal.
+ * Lelang yang semua tawarannya ditolak atau batal tetap punya kartu.
+ */
 export function ringkasLelang(
-  baris: Pick<PesananDenganListing, "jenis" | "no_wa" | "harga_tawar" | "listings">[],
+  baris: Pick<
+    PesananDenganListing,
+    "jenis" | "no_wa" | "harga_tawar" | "status" | "created_at" | "listings"
+  >[],
 ): RingkasanLelang[] {
-  const peta = new Map<string, { listing: ListingRingkas; nomor: Set<string>; tertinggi: number | null }>();
-  for (const b of baris) {
-    if (b.jenis !== "lelang" || !b.listings) continue;
-    const isi = peta.get(b.listings.id) ?? {
-      listing: b.listings,
-      nomor: new Set<string>(),
-      tertinggi: null,
-    };
-    isi.nomor.add(b.no_wa);
-    if (b.harga_tawar !== null) isi.tertinggi = Math.max(isi.tertinggi ?? 0, b.harga_tawar);
-    peta.set(b.listings.id, isi);
-  }
-  return [...peta.values()]
-    .map(({ listing, nomor, tertinggi }) => ({ listing, jumlahPenawar: nomor.size, tertinggi }))
+  type Baris = (typeof baris)[number] & { listings: ListingRingkas };
+  const lelang = baris.filter((b): b is Baris => b.jenis === "lelang" && b.listings !== null);
+
+  const daftarListing = new Map<string, ListingRingkas>();
+  for (const b of lelang) daftarListing.set(b.listings.id, b.listings);
+
+  const terbaru = terbaruTiapNomor(
+    lelang.filter((b) => !ditolakAtauBatal(b)),
+    (b) => b.listings.id,
+  );
+
+  return [...daftarListing.values()]
+    .map((listing) => {
+      const perNomor = [...(terbaru.get(listing.id)?.values() ?? [])];
+      const harga = perNomor.flatMap((b) => (b.harga_tawar === null ? [] : [b.harga_tawar]));
+      return {
+        listing,
+        jumlahPenawar: perNomor.length,
+        tertinggi: harga.length > 0 ? Math.max(...harga) : null,
+      };
+    })
     .sort((a, b) => waktuBatas(a.listing) - waktuBatas(b.listing));
 }
 

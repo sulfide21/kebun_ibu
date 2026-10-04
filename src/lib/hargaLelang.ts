@@ -3,9 +3,10 @@ import { supabaseAdmin } from "./supabase/admin";
 import { awalHariIniWita } from "./waktu";
 
 /**
- * Harga lelang yang boleh dilihat publik, per barang: tawaran tertinggi
- * sebelum 00.00 WITA hari ini. Butuh service role karena publik tidak
- * boleh membaca tabel pesanan; yang keluar dari fungsi ini hanya angka.
+ * Harga lelang yang boleh dilihat publik, per barang: yang tertinggi dari
+ * tawaran terbaru tiap nomor sebelum 00.00 WITA hari ini. Butuh service
+ * role karena publik tidak boleh membaca tabel pesanan; yang keluar dari
+ * fungsi ini hanya angka.
  *
  * Sengaja bukan fungsi database security definer - yang seperti itu
  * ditandai Security Advisor Supabase (lint 0028).
@@ -20,7 +21,7 @@ export async function ambilTertinggiKemarin(
   try {
     const { data, error } = await supabaseAdmin()
       .from("pesanan")
-      .select("listing_id, harga_tawar, created_at, status")
+      .select("listing_id, no_wa, harga_tawar, created_at, status")
       .eq("jenis", "lelang")
       .in("listing_id", listingIds)
       .in("status", ["baru", "diterima", "selesai"])
