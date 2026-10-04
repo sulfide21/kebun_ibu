@@ -42,6 +42,10 @@ create policy pesanan_kirim_publik on public.pesanan
   with check (
     pesanan.status = 'baru'
     and pesanan.diputuskan_at is null
+    -- Waktu kirim harus waktu sekarang. Tanpa ini, panggilan API langsung
+    -- bisa memundurkan created_at sehingga tawaran langsung masuk harga
+    -- publik dan Ibu kehilangan waktu sampai tengah malam untuk menolaknya.
+    and pesanan.created_at = now()
     and exists (
       select 1 from public.listings l
       where l.id = pesanan.listing_id

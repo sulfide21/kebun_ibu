@@ -1,7 +1,7 @@
 -- Tes aturan lelang di database. Jalankan: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(18);
 
 -- ---------- Data uji (dibuat sebagai postgres, RLS tidak berlaku) ----------
 insert into auth.users (id, email)
@@ -17,7 +17,8 @@ insert into public.listings (id, judul, harga, mode, batas_waktu, status) values
 insert into public.pesanan (id, listing_id, nama, no_wa, jenis, harga_tawar) values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', 'Om Budi',  '6281200000001', 'lelang', 70000),
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', 'Mas Dodi', '6281200000002', 'lelang', 65000),
-  ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Tante Ani','6281200000003', 'lelang', 55000);
+  ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Tante Ani','6281200000003', 'lelang', 55000),
+  ('20000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000003', 'Om Eko',   '6281200000004', 'pesan',  null);
 
 -- ---------- Publik (anon) ----------
 set local role anon;
@@ -62,6 +63,12 @@ select throws_ok($$
   values ('10000000-0000-0000-0000-000000000003', 'Tante Rina', '6281234567890', 'nawar', 15000)
 $$, '42501', null, 'baris nawar baru tidak bisa dikirim lagi');
 
+select throws_ok($$
+  insert into public.pesanan (listing_id, nama, no_wa, jenis, harga_tawar, created_at)
+  values ('10000000-0000-0000-0000-000000000001', 'Tante Rina', '6281234567890', 'lelang', 60000,
+          now() - interval '2 days')
+$$, '42501', null, 'tawaran dengan created_at mundur ditolak');
+
 select throws_ok($$ select count(*) from public.pesanan $$,
   '42501', null, 'anon tidak bisa membaca tawaran');
 select throws_ok($$ update public.pesanan set harga_tawar = 1 $$,
@@ -99,6 +106,11 @@ select is(
   (select status from public.pesanan where id = '20000000-0000-0000-0000-000000000002'),
   'baru',
   'penawar lain tetap baru sebagai cadangan');
+
+select is(
+  public.terima_pesanan('20000000-0000-0000-0000-000000000004', true, false) ->> 'ok',
+  'true',
+  'pesan biasa ke barang jual tetap bisa diterima');
 
 select * from finish();
 rollback;
