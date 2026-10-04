@@ -61,7 +61,7 @@ export async function ubahStatusPesanan(
       diputuskan_at: status === "baru" ? null : sekarang,
     })
     .eq("id", id)
-    .select("listing_id, jenis")
+    .select("listing_id, jenis, no_wa")
     .single();
 
   if (error) {
@@ -81,6 +81,14 @@ export async function ubahStatusPesanan(
         .eq("jenis", "lelang")
         .eq("status", "baru");
     } else if (status === "batal") {
+      // Pemenang yang mundur keluar sepenuhnya, termasuk tawaran lamanya.
+      await supabase
+        .from("pesanan")
+        .update({ status: "batal", diputuskan_at: sekarang })
+        .eq("listing_id", baris.listing_id)
+        .eq("jenis", "lelang")
+        .eq("status", "baru")
+        .eq("no_wa", baris.no_wa);
       await supabase
         .from("listings")
         .update({ status: "tersedia" })
