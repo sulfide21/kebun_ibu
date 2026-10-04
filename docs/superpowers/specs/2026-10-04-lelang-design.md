@@ -86,22 +86,27 @@ Kebijakan `pesanan_kirim_publik` diganti menjadi:
 
 ```sql
 with check (
-  status = 'baru'
-  and diputuskan_at is null
+  pesanan.status = 'baru'
+  and pesanan.diputuskan_at is null
   and exists (
     select 1 from public.listings l
-    where l.id = listing_id
+    where l.id = pesanan.listing_id
       and l.status = 'tersedia'
       and (
-        (jenis = 'pesan'  and l.mode = 'jual')
+        (pesanan.jenis = 'pesan'  and l.mode = 'jual')
         or
-        (jenis = 'lelang' and l.mode = 'lelang'
-                          and now() < l.batas_waktu
-                          and harga_tawar >= l.harga)
+        (pesanan.jenis = 'lelang' and l.mode = 'lelang'
+                                  and now() < l.batas_waktu
+                                  and pesanan.harga_tawar >= l.harga)
       )
   )
 )
 ```
+
+Setiap kolom baris baru **wajib** ditulis dengan awalan `pesanan.`.
+`listings` juga punya kolom `jenis` (mangga/pisang) dan `status`, dan di
+dalam subquery nama tanpa awalan terbaca sebagai kolom `l`. Tanpa awalan,
+`jenis = 'lelang'` tidak akan pernah benar dan semua tawaran ditolak.
 
 Database sendiri menolak tawaran di bawah minimum, tawaran setelah batas
 waktu, dan tawaran untuk barang yang bukan lelang. Pemeriksaan di form
@@ -117,8 +122,10 @@ Sisanya tetap: kunci baris listing, tolak kalau sudah ada pemenang
 ### 3.5 Harga yang tampil ke publik
 
 Harga tampil = tawaran `lelang` tertinggi untuk barang itu yang dibuat
-**sebelum pukul 00.00 WITA hari ini**. Kalau belum ada, yang tampil adalah
-harga minimum.
+**sebelum pukul 00.00 WITA hari ini**, tidak termasuk tawaran berstatus
+`ditolak` atau `batal`. Kalau belum ada, yang tampil adalah harga minimum.
+Pengecualian ini penting: tawaran iseng Rp 999.999.999 yang sudah ditolak
+Ibu tidak boleh tetap tampil sebagai harga tertinggi.
 
 Dihitung di server memakai klien service role yang sudah ada
 (`supabaseAdmin`, sama seperti cek kiriman ganda), lalu hanya angkanya yang
