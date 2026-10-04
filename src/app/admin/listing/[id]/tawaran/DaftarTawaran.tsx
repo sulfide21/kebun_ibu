@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   batalkanTolak,
   terimaPesanan,
@@ -16,7 +16,14 @@ import type { Penawar, Urutan } from "@/lib/lelang";
 import { linkWa, pesanMenangLelang } from "@/lib/wa";
 import { formatWita } from "@/lib/waktu";
 
-type Pertanyaan = { teks: string; ya: string; aksi: () => Promise<HasilAksi> };
+/** `noWa` diisi kalau pertanyaannya milik satu baris penawar; kotaknya
+ *  lalu tampil tepat di bawah baris itu, bukan di atas daftar. */
+type Pertanyaan = {
+  teks: string;
+  ya: string;
+  aksi: () => Promise<HasilAksi>;
+  noWa?: string;
+};
 
 const kelasUtama =
   "min-h-13 rounded-full bg-daun-tua px-5 font-bold text-putih disabled:opacity-50";
@@ -43,6 +50,16 @@ export default function DaftarTawaran({
   const [menunggu, mulai] = useTransition();
   const [galat, setGalat] = useState<string | null>(null);
   const [tanya, setTanya] = useState<Pertanyaan | null>(null);
+  const kotakTanya = useRef<HTMLDivElement>(null);
+  const kotakGalat = useRef<HTMLParagraphElement>(null);
+
+  // Di HP kotak bisa muncul di luar layar; gulir ke sana supaya terlihat.
+  useEffect(() => {
+    if (tanya) kotakTanya.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [tanya]);
+  useEffect(() => {
+    if (galat) kotakGalat.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [galat]);
 
   function jalankan(aksi: () => Promise<HasilAksi>) {
     setGalat(null);
@@ -54,6 +71,20 @@ export default function DaftarTawaran({
   }
 
   const bisaPilih = !terbuka && pemenang === null;
+
+  const tampilkanTanya = (t: Pertanyaan) => (
+    <div ref={kotakTanya} className="rounded-[10px] border-2 border-daun bg-kertas px-4 py-4">
+      <p className="font-bold">{t.teks}</p>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <button disabled={menunggu} onClick={() => jalankan(t.aksi)} className={kelasUtama}>
+          {menunggu ? "Sebentar…" : t.ya}
+        </button>
+        <button disabled={menunggu} onClick={() => setTanya(null)} className={kelasKedua}>
+          Batal
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="mt-6 grid gap-5">
@@ -105,22 +136,13 @@ export default function DaftarTawaran({
         ) : null}
       </div>
 
-      {tanya ? (
-        <div className="rounded-[10px] border-2 border-daun bg-kertas px-4 py-4">
-          <p className="font-bold">{tanya.teks}</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <button disabled={menunggu} onClick={() => jalankan(tanya.aksi)} className={kelasUtama}>
-              {menunggu ? "Sebentar…" : tanya.ya}
-            </button>
-            <button disabled={menunggu} onClick={() => setTanya(null)} className={kelasKedua}>
-              Batal
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {tanya && !tanya.noWa ? tampilkanTanya(tanya) : null}
 
       {galat ? (
-        <p className="rounded-[6px] border-2 border-bata px-3 py-2 font-semibold text-bata">
+        <p
+          ref={kotakGalat}
+          className="rounded-[6px] border-2 border-bata px-3 py-2 font-semibold text-bata"
+        >
           {galat}
         </p>
       ) : null}
@@ -206,6 +228,7 @@ export default function DaftarTawaran({
                       teks: `Pilih ${p.nama} dengan ${rupiah(p.terbaru.harga_tawar ?? 0)}? Barangnya ditandai sudah laku. Penawar lain tetap disimpan sebagai cadangan.`,
                       ya: "Ya, pilih",
                       aksi: () => terimaPesanan(p.terbaru.id, true, false),
+                      noWa: p.no_wa,
                     })
                   }
                   className={kelasUtama}
@@ -220,6 +243,7 @@ export default function DaftarTawaran({
                   Tolak
                 </button>
               </div>
+              {tanya?.noWa === p.no_wa ? <div className="mt-3">{tampilkanTanya(tanya)}</div> : null}
             </li>
           ))}
         </ol>
