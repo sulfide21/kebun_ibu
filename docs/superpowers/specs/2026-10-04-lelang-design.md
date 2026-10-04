@@ -238,6 +238,18 @@ Hanya tombol **Pesan Rp X**. Form nawar dihapus dari `FormPesanan.tsx`.
 - Tombol **Pilih** hanya aktif setelah batas waktu lewat.
 - Tombol **Tutup lelang sekarang** mengisi `batas_waktu = now()`, dengan
   konfirmasi.
+- Tombol **Tolak** di setiap baris menolak **semua** baris `baru` milik
+  nomor itu untuk barang ini, bukan hanya yang terbaru. Kalau hanya yang
+  terbaru, tawaran lamanya akan muncul lagi di daftar. Bisa dipakai
+  sebelum batas waktu, misalnya untuk tawaran iseng.
+- Tombol **Tolak semua** (dengan konfirmasi "Tolak semua N tawaran?")
+  menolak semua baris `baru` untuk barang ini. Lelang **tetap terbuka**
+  sampai batas waktunya; tawaran yang masuk sesudahnya tampil sebagai baris
+  baru. Kalau pemenang sudah dipilih, pemenangnya tidak ikut ditolak.
+- Orang yang ditolak pindah ke bagian lipat **"Ditolak (N)"** di bawah
+  daftar, dengan tombol **Batalkan** yang mengembalikan semua barisnya
+  menjadi `baru`. Kalau orang itu menawar lagi selagi lelang terbuka,
+  tawaran barunya tampil sebagai baris biasa di daftar utama.
 
 ### 6.4 Memilih pemenang
 
@@ -254,6 +266,12 @@ Hanya tombol **Pesan Rp X**. Form nawar dihapus dari `FormPesanan.tsx`.
 
 Langkah 3 dan 4 masuk ke `ubahStatusPesanan` untuk pesanan berjenis
 `lelang`. Pesanan biasa tidak berubah perilakunya.
+
+Tolak, Tolak semua, dan Batalkan adalah server action baru
+(`tolakPenawar(listingId, noWa)`, `tolakSemuaTawaran(listingId)`,
+`batalkanTolak(listingId, noWa)`). Ketiganya memakai klien sesi biasa,
+jadi RLS `pesanan_kelola_admin` yang menjaga hanya pengelola yang bisa
+memanggilnya.
 
 `Ringkasan` dan `Riwayat` memperlakukan `lelang` sama seperti `nawar`:
 harga akhirnya adalah `harga_tawar`.
@@ -288,7 +306,9 @@ Yang diuji:
   `Asia/Makassar` di setiap tes. Kasus wajib: input 14.00 harus menjadi
   06.00 UTC di kedua zona, dan awal hari pada pukul 23.30 dan 00.30 WITA.
 - Validasi tawaran (`skemaPesanan`): minimum, angka kosong, honeypot.
-- `tawaranTerbaruPerNomor()`: satu baris per nomor, hitungan "naik Nx".
+- `tawaranTerbaruPerNomor()`: satu baris per nomor, hitungan "naik Nx",
+  dan pemisahan antara daftar utama dan bagian "Ditolak". Orang yang
+  ditolak lalu menawar lagi harus muncul di daftar utama.
 - Pengurutan Tertinggi dan Terbaru.
 - `hargaTampil()`: memilih maksimum sebelum batas hari, atau kembali ke
   harga minimum.
@@ -313,4 +333,6 @@ menerima satu pemenang.
 
 Sebelum dipakai keluarga: buat lelang → tawar dari 2 nomor → cek harga
 tampil esok harinya → tutup lelang → pilih pemenang → batal → pilih
-cadangan → selesai → cek penawar lain menjadi `ditolak`.
+cadangan → selesai → cek penawar lain menjadi `ditolak`. Lelang kedua:
+tolak satu penawar → batalkan → tolak semua sebelum batas waktu → kirim
+tawaran baru → pastikan tawaran itu masuk ke daftar utama.
