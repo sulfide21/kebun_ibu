@@ -72,27 +72,38 @@ export async function ubahStatusPesanan(
   // Lelang punya cadangan. Penawar lain baru ditolak setelah pemenangnya
   // benar-benar lunas; kalau pemenangnya batal, barangnya dibuka lagi
   // supaya Ibu bisa memilih penawar berikutnya.
+  // Kalau langkah susulan ini gagal, status utamanya tetap sudah berubah,
+  // jadi hasilnya tetap ok; galatnya cukup dicatat di log.
   if (baris?.jenis === "lelang" && baris.listing_id) {
     if (status === "selesai") {
-      await supabase
+      const { error: galatTolak } = await supabase
         .from("pesanan")
         .update({ status: "ditolak", diputuskan_at: sekarang })
         .eq("listing_id", baris.listing_id)
         .eq("jenis", "lelang")
         .eq("status", "baru");
+      if (galatTolak) {
+        console.error("[admin] gagal menolak penawar lain:", galatTolak.message);
+      }
     } else if (status === "batal") {
       // Pemenang yang mundur keluar sepenuhnya, termasuk tawaran lamanya.
-      await supabase
+      const { error: galatBatal } = await supabase
         .from("pesanan")
         .update({ status: "batal", diputuskan_at: sekarang })
         .eq("listing_id", baris.listing_id)
         .eq("jenis", "lelang")
         .eq("status", "baru")
         .eq("no_wa", baris.no_wa);
-      await supabase
+      if (galatBatal) {
+        console.error("[admin] gagal membatalkan tawaran lama pemenang:", galatBatal.message);
+      }
+      const { error: galatBuka } = await supabase
         .from("listings")
         .update({ status: "tersedia" })
         .eq("id", baris.listing_id);
+      if (galatBuka) {
+        console.error("[admin] gagal membuka lagi barang:", galatBuka.message);
+      }
     }
   }
 

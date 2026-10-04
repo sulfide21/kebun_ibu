@@ -1,3 +1,4 @@
+import "server-only";
 import { tertinggiSebelum } from "./lelang";
 import { supabaseAdmin } from "./supabase/admin";
 import { awalHariIniWita } from "./waktu";
