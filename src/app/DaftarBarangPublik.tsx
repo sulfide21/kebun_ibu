@@ -179,7 +179,8 @@ function KartuListing({
 
       <div className="px-4 py-4">
         <h2 className="text-xl font-bold text-daun-tua">{listing.judul}</h2>
-        {lelang && !laku && listing.batas_waktu ? (
+        {/* Lelang yang masih "segera" cukup ditandai lencana Segera */}
+        {lelang && !laku && listing.status !== "segera" && listing.batas_waktu ? (
           <p className="mt-1 font-semibold text-daun-tua">
             {terbuka
               ? `Ditutup ${sisaWaktu(new Date(listing.batas_waktu), sekarang)}`
