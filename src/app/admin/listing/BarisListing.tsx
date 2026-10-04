@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { hapusListing } from "../actions";
 import { urlFoto } from "@/lib/foto";
 import { rupiah } from "@/lib/format";
+import { formatWita } from "@/lib/waktu";
 import TombolBagikan from "@/components/TombolBagikan";
 import { LABEL_STATUS_LISTING, type ListingLengkap } from "@/lib/types";
 
@@ -60,13 +61,30 @@ export default function BarisListing({
               {listing.satuan}
             </span>
           </p>
+          {listing.mode === "lelang" ? (
+            <p className="text-base font-semibold text-daun-tua">
+              Lelang · ditutup{" "}
+              {listing.batas_waktu ? formatWita(new Date(listing.batas_waktu)) : "-"}
+            </p>
+          ) : null}
           <p className="text-base text-daun">
             {jumlahPesanan > 0
-              ? `${jumlahPesanan} penawaran masuk`
-              : "Belum ada penawaran"}
+              ? `${jumlahPesanan} ${listing.mode === "lelang" ? "tawaran" : "pesanan"} masuk`
+              : listing.mode === "lelang"
+                ? "Belum ada tawaran"
+                : "Belum ada pesanan"}
           </p>
         </div>
       </div>
+
+      {listing.mode === "lelang" ? (
+        <Link
+          href={`/admin/listing/${listing.id}/tawaran`}
+          className="mt-3 flex min-h-13 items-center justify-center rounded-full bg-daun-tua px-4 font-bold text-putih"
+        >
+          Lihat tawaran
+        </Link>
+      ) : null}
 
       {galat ? (
         <p className="mt-3 rounded-[6px] border-2 border-bata px-3 py-2 font-semibold text-bata">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rupiah } from "./format";
-import { cekKiriman, skemaPesanan } from "./validasi";
+import { cekKiriman, galatBatasWaktu, galatUbahMode, skemaListing, skemaPesanan } from "./validasi";
 
 const DASAR = {
   listing_id: "3f1c2a4e-8b7d-4c1a-9e2f-1a2b3c4d5e6f",
@@ -83,5 +83,69 @@ describe("cekKiriman", () => {
 
   it("pesan biasa ke barang jual lolos", () => {
     expect(cekKiriman(jual, { jenis: "pesan", harga_tawar: null }, sekarang)).toBeNull();
+  });
+});
+
+describe("skemaListing", () => {
+  const isian = {
+    jenis: "mangga",
+    judul: "Mangga Harum Manis",
+    deskripsi: "",
+    harga: "50.000",
+    satuan: "/keranjang",
+    status: "tersedia",
+  };
+
+  it("lelang: batas waktu dibaca sebagai WITA", () => {
+    const hasil = skemaListing.safeParse({ ...isian, mode: "lelang", batas_waktu: "2026-10-10T14:00" });
+    expect(hasil.success && hasil.data.batas_waktu?.toISOString()).toBe("2026-10-10T06:00:00.000Z");
+  });
+
+  it("jual: tanpa batas waktu", () => {
+    const hasil = skemaListing.safeParse({ ...isian, mode: "jual", batas_waktu: "" });
+    expect(hasil.success && hasil.data.batas_waktu).toBeNull();
+  });
+});
+
+describe("galatBatasWaktu", () => {
+  const sekarang = new Date("2026-10-08T04:00:00Z");
+  const kemarin = new Date("2026-10-07T04:00:00Z");
+  const besok = new Date("2026-10-09T04:00:00Z");
+
+  it("lelang baru dengan batas di masa lalu ditolak", () => {
+    expect(galatBatasWaktu({ mode: "lelang", batasBaru: kemarin, batasLama: null, sekarang })).toBe(
+      "Batas waktu harus setelah sekarang.",
+    );
+  });
+
+  it("lelang tanpa batas ditolak", () => {
+    expect(galatBatasWaktu({ mode: "lelang", batasBaru: null, batasLama: null, sekarang })).toBe(
+      "Isi kapan lelang ditutup.",
+    );
+  });
+
+  it("mengubah batas ke masa depan boleh", () => {
+    expect(galatBatasWaktu({ mode: "lelang", batasBaru: besok, batasLama: kemarin, sekarang })).toBeNull();
+  });
+
+  it("mengubah keterangan lelang yang sudah ditutup tidak terhalang batas waktu", () => {
+    // "Tutup lelang sekarang" menyimpan detik; form hanya mengirim menit.
+    const ditutupPadaDetik = new Date("2026-10-07T04:00:37Z");
+    expect(galatBatasWaktu({ mode: "lelang", batasBaru: kemarin, batasLama: ditutupPadaDetik, sekarang })).toBeNull();
+  });
+
+  it("mode jual tidak diperiksa", () => {
+    expect(galatBatasWaktu({ mode: "jual", batasBaru: null, batasLama: null, sekarang })).toBeNull();
+  });
+});
+
+describe("galatUbahMode", () => {
+  it("mode tidak bisa diubah setelah ada pesanan atau tawaran", () => {
+    expect(galatUbahMode("jual", "lelang", 1)).toMatch(/tidak bisa diubah/);
+  });
+  it("boleh diubah kalau belum ada apa-apa, atau tidak berubah", () => {
+    expect(galatUbahMode("jual", "lelang", 0)).toBeNull();
+    expect(galatUbahMode("lelang", "lelang", 5)).toBeNull();
+    expect(galatUbahMode(null, "lelang", 0)).toBeNull();
   });
 });

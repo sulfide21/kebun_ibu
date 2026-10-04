@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { rupiah } from "./format";
 import { lelangTerbuka } from "./lelang";
-import type { Listing } from "./types";
+import type { Listing, ModeListing } from "./types";
+import { bacaInputWita } from "./waktu";
 
 /**
  * Nomor WhatsApp datang dalam banyak bentuk: 0812..., +62 812-3456,
@@ -112,7 +113,48 @@ export const skemaListing = z.object({
     }),
   satuan: z.string().trim().max(30).default("/keranjang"),
   status: z.enum(["segera", "tersedia", "sudah_laku"]),
+  mode: z.enum(["jual", "lelang"]),
+  // "2026-10-10T14:00" dari datetime-local, selalu dibaca sebagai WITA
+  batas_waktu: z
+    .string()
+    .optional()
+    .transform((v) => (v ? bacaInputWita(v) : null)),
 });
+
+const menit = (d: Date) => Math.floor(d.getTime() / 60_000);
+
+/**
+ * Batas waktu hanya diperiksa kalau memang diubah. Form hanya mengirim
+ * menit, sedangkan "Tutup lelang sekarang" menyimpan detik; karena itu
+ * dibandingkan per menit, supaya mengubah keterangan lelang yang sudah
+ * ditutup tidak tertolak.
+ */
+export function galatBatasWaktu(a: {
+  mode: ModeListing;
+  batasBaru: Date | null;
+  batasLama: Date | null;
+  sekarang: Date;
+}): string | null {
+  if (a.mode !== "lelang") return null;
+  if (!a.batasBaru) return "Isi kapan lelang ditutup.";
+  const berubah = !a.batasLama || menit(a.batasLama) !== menit(a.batasBaru);
+  if (berubah && a.batasBaru.getTime() <= a.sekarang.getTime()) {
+    return "Batas waktu harus setelah sekarang.";
+  }
+  return null;
+}
+
+/** Lelang yang sedang berjalan tidak boleh diam-diam menjadi jualan biasa. */
+export function galatUbahMode(
+  modeLama: ModeListing | null,
+  modeBaru: ModeListing,
+  jumlahPesanan: number,
+): string | null {
+  if (modeLama !== null && modeLama !== modeBaru && jumlahPesanan > 0) {
+    return "Mode tidak bisa diubah karena sudah ada pesanan atau tawaran masuk.";
+  }
+  return null;
+}
 
 export const skemaPengaturan = z.object({
   teks_musim: z.string().trim().max(200, "Teks terlalu panjang.").default(""),

@@ -14,11 +14,13 @@ export default async function UbahListing({
   const { id } = await params;
   const supabase = await supabaseServer();
 
-  const { data } = await supabase
-    .from("listings")
-    .select("*, listing_foto(*)")
-    .eq("id", id)
-    .single();
+  const [{ data }, { count }] = await Promise.all([
+    supabase.from("listings").select("*, listing_foto(*)").eq("id", id).single(),
+    supabase
+      .from("pesanan")
+      .select("id", { count: "exact", head: true })
+      .eq("listing_id", id),
+  ]);
 
   if (!data) notFound();
 
@@ -35,7 +37,11 @@ export default async function UbahListing({
         </Link>
       </nav>
       <h1 className="mb-5 text-3xl font-extrabold text-daun-tua">Ubah barang</h1>
-      <FormListing listing={listing} fotoAwal={fotoAwal} />
+      <FormListing
+        listing={listing}
+        fotoAwal={fotoAwal}
+        modeTerkunci={(count ?? 0) > 0}
+      />
     </>
   );
 }

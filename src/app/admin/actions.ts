@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { pesanError, skemaListing, skemaPengaturan } from "@/lib/validasi";
-import type { StatusPesanan } from "@/lib/types";
+import { galatBatasWaktu, galatUbahMode, pesanError, skemaListing, skemaPengaturan } from "@/lib/validasi";
+import type { ModeListing, StatusPesanan } from "@/lib/types";
 
 export type HasilAksi = {
   ok: boolean;
@@ -92,17 +92,51 @@ export async function simpanListing(
     harga: formData.get("harga"),
     satuan: formData.get("satuan") || "/keranjang",
     status: formData.get("status"),
+    mode: formData.get("mode") ?? "jual",
+    batas_waktu: formData.get("batas_waktu") ?? "",
   });
 
   if (!hasil.success) return { ok: false, error: pesanError(hasil.error) };
 
+  const { batas_waktu: batasBaru, ...isian } = hasil.data;
   const supabase = await supabaseServer();
+
+  let lama: { mode: ModeListing; batas_waktu: string | null } | null = null;
+  let jumlahPesanan = 0;
+  if (id) {
+    const [{ data: listingLama }, { count }] = await Promise.all([
+      supabase.from("listings").select("mode, batas_waktu").eq("id", id).single(),
+      supabase
+        .from("pesanan")
+        .select("id", { count: "exact", head: true })
+        .eq("listing_id", id),
+    ]);
+    lama = listingLama;
+    jumlahPesanan = count ?? 0;
+  }
+
+  const galatMode = galatUbahMode(lama?.mode ?? null, isian.mode, jumlahPesanan);
+  if (galatMode) return { ok: false, error: { mode: galatMode } };
+
+  const galatBatas = galatBatasWaktu({
+    mode: isian.mode,
+    batasBaru,
+    batasLama: lama?.batas_waktu ? new Date(lama.batas_waktu) : null,
+    sekarang: new Date(),
+  });
+  if (galatBatas) return { ok: false, error: { batas_waktu: galatBatas } };
+
+  const baris = {
+    ...isian,
+    batas_waktu:
+      isian.mode === "lelang" && batasBaru ? batasBaru.toISOString() : null,
+  };
   let listingId = id;
 
   if (id) {
     const { error } = await supabase
       .from("listings")
-      .update(hasil.data)
+      .update(baris)
       .eq("id", id);
     if (error) {
       console.error("[admin] gagal ubah listing:", error.message);
@@ -111,7 +145,7 @@ export async function simpanListing(
   } else {
     const { data, error } = await supabase
       .from("listings")
-      .insert(hasil.data)
+      .insert(baris)
       .select("id")
       .single();
     if (error || !data) {

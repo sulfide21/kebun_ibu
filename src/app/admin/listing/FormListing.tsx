@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { simpanListing, type HasilAksi } from "../actions";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { urlFoto } from "@/lib/foto";
-import type { Listing } from "@/lib/types";
+import type { Listing, ModeListing } from "@/lib/types";
+import { keInputWita } from "@/lib/waktu";
 
 const MAKS_FOTO = 6;
 
@@ -24,9 +25,10 @@ function namaAcak(): string {
 type Props = {
   listing?: Listing;
   fotoAwal?: string[];
+  modeTerkunci?: boolean;
 };
 
-export default function FormListing({ listing, fotoAwal = [] }: Props) {
+export default function FormListing({ listing, fotoAwal = [], modeTerkunci = false }: Props) {
   const [hasil, simpan, sedangSimpan] = useActionState<HasilAksi | null, FormData>(
     simpanListing,
     null,
@@ -35,6 +37,7 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
   const [sedangUnggah, setSedangUnggah] = useState(false);
   const [galatFoto, setGalatFoto] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [mode, setMode] = useState<ModeListing>(listing?.mode ?? "jual");
 
   /**
    * Foto dari HP bisa 3-8 MB. Dikecilkan dulu di browser supaya tidak
@@ -137,6 +140,41 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
       <input type="hidden" name="foto_paths" value={JSON.stringify(foto)} />
 
       <fieldset className="grid gap-2">
+        <legend className="mb-1.5 font-semibold">Cara menjual</legend>
+        {/* Radio yang disabled tidak ikut terkirim, jadi nilainya dikirim lewat sini */}
+        {modeTerkunci ? <input type="hidden" name="mode" value={mode} /> : null}
+        <div className="grid grid-cols-2 gap-3">
+          {(["jual", "lelang"] as const).map((m) => (
+            <label
+              key={m}
+              className={`flex min-h-13 items-center justify-center rounded-full border-2 border-daun-tua px-4 text-lg font-bold ${
+                mode === m ? "bg-daun-tua text-putih" : "bg-putih text-daun-tua"
+              } ${modeTerkunci ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+            >
+              <input
+                type="radio"
+                name={modeTerkunci ? undefined : "mode"}
+                value={m}
+                checked={mode === m}
+                onChange={() => setMode(m)}
+                disabled={modeTerkunci}
+                className="sr-only"
+              />
+              {m === "jual" ? "Jual" : "Lelang"}
+            </label>
+          ))}
+        </div>
+        {modeTerkunci ? (
+          <p className="text-base text-daun">
+            Tidak bisa diubah karena sudah ada pesanan atau tawaran masuk.
+          </p>
+        ) : null}
+        {hasil?.error?.mode ? (
+          <p className="font-semibold text-bata">{hasil.error.mode}</p>
+        ) : null}
+      </fieldset>
+
+      <fieldset className="grid gap-2">
         <span className="font-semibold">Foto (maksimal {MAKS_FOTO})</span>
 
         {foto.length > 0 ? (
@@ -211,7 +249,7 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
       </Kolom>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Kolom label="Harga" error={hasil?.error?.harga}>
+        <Kolom label={mode === "lelang" ? "Harga minimum" : "Harga"} error={hasil?.error?.harga}>
           <div className="flex items-center gap-2 rounded-[10px] border-2 border-daun-tua bg-putih px-4">
             <span className="font-semibold text-daun">Rp</span>
             <input
@@ -234,6 +272,20 @@ export default function FormListing({ listing, fotoAwal = [] }: Props) {
           />
         </Kolom>
       </div>
+
+      {mode === "lelang" ? (
+        <Kolom label="Ditutup pada (jam WITA)" error={hasil?.error?.batas_waktu}>
+          <input
+            type="datetime-local"
+            name="batas_waktu"
+            required
+            defaultValue={
+              listing?.batas_waktu ? keInputWita(new Date(listing.batas_waktu)) : ""
+            }
+            className="min-h-13 w-full rounded-[10px] border-2 border-daun-tua bg-putih px-4 text-lg"
+          />
+        </Kolom>
+      ) : null}
 
       <Kolom label="Keterangan" error={hasil?.error?.deskripsi}>
         <textarea
