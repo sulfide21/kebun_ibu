@@ -1,5 +1,7 @@
 import { rupiah } from "./format";
+import { hargaAkhir } from "./lelang";
 import type { Listing, PesananDenganListing } from "./types";
+import { formatWita } from "./waktu";
 
 export function alamatSitus(): string {
   return (
@@ -15,29 +17,49 @@ export function linkWa(no: string, pesan: string): string {
 /** Pesan siap tempel untuk dibagikan Ibu/Bapak ke grup keluarga. */
 export function pesanBagikan(listing: Listing): string {
   const link = `${alamatSitus()}/l/${listing.id}`;
+
+  if (listing.mode === "lelang" && listing.batas_waktu) {
+    return [
+      `Ada ${listing.judul} nih, dilelang.`,
+      `Mulai ${rupiah(listing.harga)} ${listing.satuan}, ditutup ${formatWita(new Date(listing.batas_waktu))}.`,
+      ``,
+      `Ikut lelang lewat sini:`,
+      link,
+    ].join("\n");
+  }
+
   return [
     `Ada ${listing.judul} nih.`,
     `Harga ${rupiah(listing.harga)} ${listing.satuan}.`,
     ``,
-    `Mau pesan atau nawar? Lewat sini aja:`,
+    `Mau pesan? Lewat sini aja:`,
     link,
   ].join("\n");
 }
 
-/** Dibuka Ibu/Bapak setelah menerima penawaran, untuk menghubungi pemenang. */
+/** Dikirim Ibu/Bapak ke pemenang lelang. */
+export function pesanMenangLelang(nama: string, judul: string, harga: number): string {
+  return [
+    `Halo ${nama},`,
+    ``,
+    `Tawaranmu ${rupiah(harga)} untuk ${judul} menang lelang ya.`,
+    ``,
+    `Enaknya diambil kapan?`,
+  ].join("\n");
+}
+
+/** Dibuka Ibu/Bapak setelah menerima pesanan, untuk menghubungi pembeli. */
 export function pesanPenawaranDiterima(pesanan: PesananDenganListing): string {
-  const nilai =
-    pesanan.jenis === "nawar" && pesanan.harga_tawar !== null
-      ? pesanan.harga_tawar
-      : (pesanan.harga_listing ?? pesanan.listings?.harga ?? null);
-  const harga = nilai === null ? "" : rupiah(nilai);
+  const nilai = hargaAkhir(pesanan);
   const judul = pesanan.listings?.judul || pesanan.judul_snapshot || "barang";
+
+  if (pesanan.jenis === "lelang") return pesanMenangLelang(pesanan.nama, judul, nilai);
 
   return [
     `Halo ${pesanan.nama},`,
     ``,
-    `Penawarannya untuk ${judul} diterima ya.`,
-    harga ? `Harga: ${harga}.` : ``,
+    `Pesanannya untuk ${judul} diterima ya.`,
+    nilai > 0 ? `Harga: ${rupiah(nilai)}.` : ``,
     ``,
     `Enaknya diambil kapan?`,
   ]

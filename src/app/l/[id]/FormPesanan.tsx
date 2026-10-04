@@ -3,13 +3,14 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { buatPesanan, type HasilPesanan } from "@/app/actions/pesanan";
 import { rupiah } from "@/lib/format";
-import type { JenisPesanan } from "@/lib/types";
 
 type Props = {
   listingId: string;
   judul: string;
+  /** Mode lelang: harga minimum. */
   harga: number;
   satuan: string;
+  jenis: "pesan" | "lelang";
 };
 
 export default function FormPesanan({
@@ -17,8 +18,10 @@ export default function FormPesanan({
   judul,
   harga,
   satuan,
+  jenis,
 }: Props) {
-  const [mode, setMode] = useState<JenisPesanan | null>(null);
+  const lelang = jenis === "lelang";
+  const [buka, setBuka] = useState(false);
   const [hasil, kirim, sedangKirim] = useActionState<
     HasilPesanan | null,
     FormData
@@ -27,17 +30,17 @@ export default function FormPesanan({
 
   // Tutup dengan Escape, seperti yang diharapkan dari panel yang menutupi layar
   useEffect(() => {
-    if (!mode) return;
+    if (!buka) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMode(null);
+      if (e.key === "Escape") setBuka(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mode]);
+  }, [buka]);
 
   useEffect(() => {
-    if (mode) panelRef.current?.querySelector("input")?.focus();
-  }, [mode]);
+    if (buka) panelRef.current?.querySelector("input")?.focus();
+  }, [buka]);
 
   if (hasil?.ok) {
     return (
@@ -52,45 +55,38 @@ export default function FormPesanan({
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={() => setMode("pesan")}
-          className="min-h-13 rounded-full bg-daun-tua px-6 py-3 text-lg font-bold text-putih"
-        >
-          Pesan {rupiah(harga)}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("nawar")}
-          className="min-h-13 rounded-full border-2 border-daun-tua bg-emas px-6 py-3 text-lg font-bold text-daun-tua"
-        >
-          Nawar harga
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setBuka(true)}
+        className="min-h-13 w-full rounded-full bg-daun-tua px-6 py-3 text-lg font-bold text-putih"
+      >
+        {lelang ? "Lelang" : `Pesan ${rupiah(harga)}`}
+      </button>
       <p className="mt-3 text-center text-base text-daun">
-        Tidak perlu daftar akun. Ibu yang akan menghubungi lewat WhatsApp.
+        {lelang
+          ? "Tidak perlu daftar akun. Tawaranmu hanya dilihat Ibu."
+          : "Tidak perlu daftar akun. Ibu yang akan menghubungi lewat WhatsApp."}
       </p>
 
-      {mode ? (
+      {buka ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-daun-tua/50 sm:items-center">
           <div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            aria-label={mode === "pesan" ? "Form pesan" : "Form nawar"}
+            aria-label={lelang ? "Form lelang" : "Form pesan"}
             className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[16px] border-t-4 border-daun-tua bg-kertas px-5 pt-5 pb-8 sm:rounded-[16px] sm:border-4"
           >
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-extrabold text-daun-tua">
-                  {mode === "pesan" ? "Pesan barang ini" : "Nawar harga"}
+                  {lelang ? "Ikut lelang" : "Pesan barang ini"}
                 </h2>
                 <p className="text-daun">{judul}</p>
               </div>
               <button
                 type="button"
-                onClick={() => setMode(null)}
+                onClick={() => setBuka(false)}
                 className="min-h-11 min-w-11 rounded-full border-2 border-daun-tua text-xl font-bold"
                 aria-label="Tutup"
               >
@@ -100,7 +96,7 @@ export default function FormPesanan({
 
             <form action={kirim} className="grid gap-4">
               <input type="hidden" name="listing_id" value={listingId} />
-              <input type="hidden" name="jenis" value={mode} />
+              <input type="hidden" name="jenis" value={jenis} />
               {/* Jebakan bot: disembunyikan dari mata dan dari pembaca layar */}
               <input
                 type="text"
@@ -132,9 +128,9 @@ export default function FormPesanan({
                 />
               </Kolom>
 
-              {mode === "nawar" ? (
+              {lelang ? (
                 <Kolom
-                  label={`Harga yang ditawar ${satuan}`}
+                  label={`Jumlah tawaran ${satuan}`}
                   error={hasil?.error?.harga_tawar}
                 >
                   <div className="flex items-center gap-2 rounded-[10px] border-2 border-daun-tua bg-putih px-4">
@@ -148,7 +144,7 @@ export default function FormPesanan({
                     />
                   </div>
                   <p className="mt-1 text-base text-daun">
-                    Harga yang dipasang {rupiah(harga)} {satuan}.
+                    Minimal {rupiah(harga)} {satuan}.
                   </p>
                 </Kolom>
               ) : null}
@@ -173,7 +169,7 @@ export default function FormPesanan({
                 disabled={sedangKirim}
                 className="min-h-13 rounded-full bg-daun-tua px-6 py-3 text-lg font-bold text-putih disabled:opacity-60"
               >
-                {sedangKirim ? "Mengirim…" : "Kirim ke Ibu"}
+                {sedangKirim ? "Mengirim…" : lelang ? "Kirim tawaran" : "Kirim ke Ibu"}
               </button>
             </form>
           </div>

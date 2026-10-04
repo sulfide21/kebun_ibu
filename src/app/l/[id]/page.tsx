@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { urlFoto } from "@/lib/foto";
 import { rupiah, waktuLalu } from "@/lib/format";
+import { ambilTertinggiKemarin } from "@/lib/hargaLelang";
+import { lelangTerbuka } from "@/lib/lelang";
 import { LABEL_JENIS, type ListingLengkap } from "@/lib/types";
 import FormPesanan from "./FormPesanan";
+import HargaLelang from "./HargaLelang";
 
 export const revalidate = 0;
 
@@ -28,7 +31,16 @@ export default async function DetailListing({
   const foto = [...(listing.listing_foto ?? [])].sort(
     (a, b) => a.urutan - b.urutan,
   );
-  const bisaDibeli = listing.status === "tersedia";
+
+  const sekarang = new Date();
+  const lelang = listing.mode === "lelang";
+  const bisaDibeli = lelang
+    ? lelangTerbuka(listing, sekarang)
+    : listing.status === "tersedia";
+  const lelangDitutup = lelang && listing.status === "tersedia" && !bisaDibeli;
+  const tertinggi = lelang
+    ? ((await ambilTertinggiKemarin([listing.id], sekarang))[listing.id] ?? null)
+    : null;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 pb-20">
@@ -57,17 +69,34 @@ export default async function DetailListing({
       )}
 
       <div className="mt-6">
-        <p className="font-semibold text-daun">{LABEL_JENIS[listing.jenis]}</p>
+        <p className="font-semibold text-daun">
+          {LABEL_JENIS[listing.jenis]}
+          {lelang ? (
+            <span className="ml-2 rounded-full bg-emas px-3 py-0.5 text-sm font-extrabold tracking-wide text-daun-tua">
+              LELANG
+            </span>
+          ) : null}
+        </p>
         <h1 className="mt-1 text-3xl font-extrabold text-daun-tua">
           {listing.judul}
         </h1>
 
-        <p className="angka mt-4 text-4xl font-extrabold text-emas-tua">
-          {rupiah(listing.harga)}
-          <span className="ml-2 text-xl font-semibold text-daun">
-            {listing.satuan}
-          </span>
-        </p>
+        {lelang ? (
+          <HargaLelang
+            hargaMinimum={listing.harga}
+            tertinggi={tertinggi}
+            batas={listing.batas_waktu}
+            satuan={listing.satuan}
+            sekarang={sekarang}
+          />
+        ) : (
+          <p className="angka mt-4 text-4xl font-extrabold text-emas-tua">
+            {rupiah(listing.harga)}
+            <span className="ml-2 text-xl font-semibold text-daun">
+              {listing.satuan}
+            </span>
+          </p>
+        )}
 
         {listing.deskripsi ? (
           <p className="mt-5 whitespace-pre-wrap text-lg">{listing.deskripsi}</p>
@@ -85,18 +114,23 @@ export default async function DetailListing({
             judul={listing.judul}
             harga={listing.harga}
             satuan={listing.satuan}
+            jenis={lelang ? "lelang" : "pesan"}
           />
         ) : (
           <div className="rounded-[10px] border-2 border-daun-tua bg-putih px-5 py-6 text-center">
             <p className="text-xl font-bold text-daun-tua">
               {listing.status === "sudah_laku"
                 ? "Barang ini sudah laku."
-                : "Belum dibuka."}
+                : lelangDitutup
+                  ? "Lelang sudah ditutup."
+                  : "Belum dibuka."}
             </p>
             <p className="mt-2 text-daun">
               {listing.status === "sudah_laku"
                 ? "Nanti kalau panen lagi, Ibu kabari di grup keluarga."
-                : "Tunggu kabar dari Ibu ya, sebentar lagi dibuka."}
+                : lelangDitutup
+                  ? "Ibu sedang memilih pemenang. Kalau terpilih, Ibu akan menghubungi lewat WhatsApp."
+                  : "Tunggu kabar dari Ibu ya, sebentar lagi dibuka."}
             </p>
             <Link
               href="/"

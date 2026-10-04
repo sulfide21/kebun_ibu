@@ -6,14 +6,23 @@ import KotakCari from "@/components/KotakCari";
 import { buatPencocok } from "@/lib/cari";
 import { urlFoto } from "@/lib/foto";
 import { rupiah } from "@/lib/format";
+import { lelangTerbuka, susunBeranda } from "@/lib/lelang";
 import { LABEL_JENIS, type ListingLengkap } from "@/lib/types";
+import { sisaWaktu } from "@/lib/waktu";
 
 export default function DaftarBarangPublik({
   daftar,
+  tertinggi,
+  sekarang,
 }: {
   daftar: ListingLengkap[];
+  /** Tawaran tertinggi sampai kemarin, per id barang lelang. */
+  tertinggi: Record<string, number>;
+  /** Jam server (ISO), supaya hitungan "3 hari lagi" sama di server dan browser. */
+  sekarang: string;
 }) {
   const [kueri, setKueri] = useState("");
+  const waktuSekarang = useMemo(() => new Date(sekarang), [sekarang]);
 
   const hasil = useMemo(() => {
     const cocok = buatPencocok(kueri);
@@ -27,9 +36,25 @@ export default function DaftarBarangPublik({
         l.satuan,
         String(l.harga),
         rupiah(l.harga),
+        l.mode === "lelang" ? "lelang" : undefined,
       ),
     );
   }, [daftar, kueri]);
+
+  const { lelang, lainnya } = useMemo(
+    () => susunBeranda(hasil, waktuSekarang),
+    [hasil, waktuSekarang],
+  );
+
+  const kartu = (listing: ListingLengkap) => (
+    <li key={listing.id}>
+      <KartuListing
+        listing={listing}
+        tertinggi={tertinggi[listing.id]}
+        sekarang={waktuSekarang}
+      />
+    </li>
+  );
 
   return (
     <>
@@ -51,23 +76,48 @@ export default function DaftarBarangPublik({
           </p>
         </div>
       ) : (
-        <ul className="grid gap-6">
-          {hasil.map((listing) => (
-            <li key={listing.id}>
-              <KartuListing listing={listing} />
-            </li>
-          ))}
-        </ul>
+        <>
+          {lelang.length > 0 ? (
+            <section className="mb-10">
+              <h2 className="mb-4 text-2xl font-extrabold text-daun-tua">
+                Sedang dilelang
+              </h2>
+              <ul className="grid gap-6">{lelang.map(kartu)}</ul>
+            </section>
+          ) : null}
+
+          {lainnya.length > 0 ? (
+            <section>
+              {lelang.length > 0 ? (
+                <h2 className="mb-4 text-2xl font-extrabold text-daun-tua">
+                  Dijual
+                </h2>
+              ) : null}
+              <ul className="grid gap-6">{lainnya.map(kartu)}</ul>
+            </section>
+          ) : null}
+        </>
       )}
     </>
   );
 }
 
-function KartuListing({ listing }: { listing: ListingLengkap }) {
+function KartuListing({
+  listing,
+  tertinggi,
+  sekarang,
+}: {
+  listing: ListingLengkap;
+  tertinggi: number | undefined;
+  sekarang: Date;
+}) {
   const foto = [...(listing.listing_foto ?? [])].sort(
     (a, b) => a.urutan - b.urutan,
   )[0];
   const laku = listing.status === "sudah_laku";
+  const lelang = listing.mode === "lelang";
+  const terbuka = lelangTerbuka(listing, sekarang);
+  const harga = lelang ? (tertinggi ?? listing.harga) : listing.harga;
 
   return (
     <Link
@@ -103,11 +153,24 @@ function KartuListing({ listing }: { listing: ListingLengkap }) {
           </span>
         ) : null}
 
+        {lelang && !laku ? (
+          <span className="absolute top-3 right-3 rounded-full border-2 border-daun-tua bg-emas px-4 py-1 text-sm font-extrabold tracking-wide text-daun-tua">
+            LELANG
+          </span>
+        ) : null}
+
         {/* Harga ditempel di tepi bawah foto, seperti label di peti buah */}
         <div className="absolute right-0 bottom-0 left-0 flex items-end justify-between gap-3 bg-linear-to-t from-black/70 to-transparent px-4 pt-10 pb-3">
-          <p className="angka text-3xl font-extrabold text-emas">
-            {rupiah(listing.harga)}
-          </p>
+          <div>
+            {lelang ? (
+              <p className="text-sm font-semibold text-white/90">
+                {tertinggi !== undefined ? "Tertinggi" : "Mulai"}
+              </p>
+            ) : null}
+            <p className="angka text-3xl font-extrabold text-emas">
+              {rupiah(harga)}
+            </p>
+          </div>
           <p className="pb-1.5 text-sm font-semibold text-white/90">
             {listing.satuan}
           </p>
@@ -116,6 +179,13 @@ function KartuListing({ listing }: { listing: ListingLengkap }) {
 
       <div className="px-4 py-4">
         <h2 className="text-xl font-bold text-daun-tua">{listing.judul}</h2>
+        {lelang && !laku && listing.batas_waktu ? (
+          <p className="mt-1 font-semibold text-daun-tua">
+            {terbuka
+              ? `Ditutup ${sisaWaktu(new Date(listing.batas_waktu), sekarang)}`
+              : "Lelang ditutup"}
+          </p>
+        ) : null}
         {listing.deskripsi ? (
           <p className="mt-1 line-clamp-2 text-daun">{listing.deskripsi}</p>
         ) : null}

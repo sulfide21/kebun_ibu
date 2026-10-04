@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
-import { urutkanListing } from "@/lib/foto";
+import { ambilTertinggiKemarin } from "@/lib/hargaLelang";
+import { lelangTerbuka } from "@/lib/lelang";
 import DaftarBarangPublik from "./DaftarBarangPublik";
 import type { ListingLengkap, Pengaturan } from "@/lib/types";
 
@@ -17,9 +18,16 @@ export default async function Beranda() {
     supabase.from("pengaturan").select("*").eq("id", 1).single(),
   ]);
 
-  const daftar = urutkanListing((listings ?? []) as ListingLengkap[]);
+  const daftar = (listings ?? []) as ListingLengkap[];
   const setelan = pengaturan as Pengaturan | null;
-  const adaYangDijual = daftar.some((l) => l.status === "tersedia");
+  const sekarang = new Date();
+  const tertinggi = await ambilTertinggiKemarin(
+    daftar.filter((l) => l.mode === "lelang").map((l) => l.id),
+    sekarang,
+  );
+  const adaYangDijual = daftar.some((l) =>
+    l.mode === "lelang" ? lelangTerbuka(l, sekarang) : l.status === "tersedia",
+  );
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 pb-20">
@@ -49,7 +57,11 @@ export default async function Beranda() {
             </p>
           ) : null}
 
-          <DaftarBarangPublik daftar={daftar} />
+          <DaftarBarangPublik
+            daftar={daftar}
+            tertinggi={tertinggi}
+            sekarang={sekarang.toISOString()}
+          />
         </>
       )}
 
