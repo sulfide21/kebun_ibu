@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
-import { awalBulanWIB, rupiah } from "@/lib/format";
+import { awalBulanWita, rupiah } from "@/lib/format";
 import type { PesananDenganListing } from "@/lib/types";
 
 /** Harga yang benar-benar terjadi pada satu pesanan. */
@@ -18,8 +18,8 @@ function rataRata(daftar: PesananDenganListing[]): number | null {
 
 export default async function Ringkasan() {
   const supabase = await supabaseServer();
-  const awalBulanIni = awalBulanWIB(0);
-  const awalBulanLalu = awalBulanWIB(1);
+  const awalBulanIni = awalBulanWita(0);
+  const awalBulanLalu = awalBulanWita(1);
 
   const [baru, menunggu, tersedia, selesai] = await Promise.all([
     supabase

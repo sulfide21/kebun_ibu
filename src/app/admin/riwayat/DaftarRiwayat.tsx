@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import KotakCari from "@/components/KotakCari";
 import { buatPencocok } from "@/lib/cari";
 import {
-  bulanWIB,
+  bulanWita,
   rupiah,
   tampilkanNoWa,
-  tanggalSingkatWIB,
+  tanggalSingkatWita,
 } from "@/lib/format";
 import type { PesananDenganListing } from "@/lib/types";
 
@@ -37,8 +37,8 @@ export default function DaftarRiwayat({
         p.no_wa,
         tampilkanNoWa(p.no_wa),
         p.catatan,
-        bulanWIB(p.diputuskan_at ?? p.created_at),
-        tanggalSingkatWIB(p.diputuskan_at ?? p.created_at),
+        bulanWita(p.diputuskan_at ?? p.created_at),
+        tanggalSingkatWita(p.diputuskan_at ?? p.created_at),
         p.jenis === "nawar" ? "nawar" : "sesuai harga",
         String(hargaAkhir(p)),
         rupiah(hargaAkhir(p)),
@@ -49,7 +49,7 @@ export default function DaftarRiwayat({
   const perBulan = useMemo(() => {
     const peta = new Map<string, PesananDenganListing[]>();
     for (const p of hasil) {
-      const kunci = bulanWIB(p.diputuskan_at ?? p.created_at);
+      const kunci = bulanWita(p.diputuskan_at ?? p.created_at);
       const isi = peta.get(kunci) ?? [];
       isi.push(p);
       peta.set(kunci, isi);
@@ -123,7 +123,7 @@ export default function DaftarRiwayat({
                           </p>
                           <p className="truncate text-base text-daun">
                             {p.nama} ·{" "}
-                            {tanggalSingkatWIB(p.diputuskan_at ?? p.created_at)}
+                            {tanggalSingkatWita(p.diputuskan_at ?? p.created_at)}
                             {p.jenis === "nawar" ? " · nawar" : ""}
                           </p>
                         </div>

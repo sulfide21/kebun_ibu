@@ -1,4 +1,4 @@
-const WIB = "Asia/Jakarta";
+import { ZONA_WITA } from "./waktu";
 
 export function rupiah(nilai: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -8,28 +8,28 @@ export function rupiah(nilai: number): string {
   }).format(nilai);
 }
 
-/** "12 Okt 2026, 14.30" - selalu dalam WIB, bukan zona waktu server. */
-export function tanggalWIB(iso: string): string {
+/** "12 Okt 2026, 14.30" - selalu dalam WITA, bukan zona waktu server. */
+export function tanggalWita(iso: string): string {
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
     timeStyle: "short",
-    timeZone: WIB,
+    timeZone: ZONA_WITA,
   }).format(new Date(iso));
 }
 
-export function tanggalSingkatWIB(iso: string): string {
+export function tanggalSingkatWita(iso: string): string {
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "short",
-    timeZone: WIB,
+    timeZone: ZONA_WITA,
   }).format(new Date(iso));
 }
 
-export function bulanWIB(iso: string): string {
+export function bulanWita(iso: string): string {
   return new Intl.DateTimeFormat("id-ID", {
     month: "long",
     year: "numeric",
-    timeZone: WIB,
+    timeZone: ZONA_WITA,
   }).format(new Date(iso));
 }
 
@@ -43,20 +43,19 @@ export function waktuLalu(iso: string): string {
   if (jam < 24) return `${jam} jam lalu`;
   const hari = Math.round(jam / 24);
   if (hari < 30) return `${hari} hari lalu`;
-  return tanggalSingkatWIB(iso);
+  return tanggalSingkatWita(iso);
 }
 
 /**
- * Awal bulan menurut WIB, dikembalikan sebagai ISO untuk dipakai query.
+ * Awal bulan menurut WITA, dikembalikan sebagai ISO untuk dipakai query.
  * mundur=0 berarti bulan ini, mundur=1 bulan lalu.
  *
- * Batas bulan dihitung di WIB, bukan UTC. Penjualan jam 8 malam tanggal 31
+ * Batas bulan dihitung di WITA, bukan UTC. Penjualan jam 8 malam tanggal 31
  * masih masuk bulan itu bagi Ibu, padahal di UTC sudah lewat tengah malam.
  */
-export function awalBulanWIB(mundur = 0): string {
-  const sekarang = new Date();
+export function awalBulanWita(mundur = 0, sekarang = new Date()): string {
   const bagian = new Intl.DateTimeFormat("en-CA", {
-    timeZone: WIB,
+    timeZone: ZONA_WITA,
     year: "numeric",
     month: "2-digit",
   }).format(sekarang);
@@ -66,9 +65,9 @@ export function awalBulanWIB(mundur = 0): string {
   const t = Math.floor(total / 12);
   const b = (total % 12) + 1;
 
-  // +07:00 = WIB, tidak pernah berubah (tidak ada daylight saving)
+  // +08:00 = WITA, tidak pernah berubah (tidak ada daylight saving)
   return new Date(
-    `${t}-${String(b).padStart(2, "0")}-01T00:00:00+07:00`,
+    `${t}-${String(b).padStart(2, "0")}-01T00:00:00+08:00`,
   ).toISOString();
 }
 
