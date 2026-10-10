@@ -130,7 +130,7 @@ export default function FormPesanan({
 
               {lelang ? (
                 <Kolom
-                  label={`Jumlah tawaran ${satuan}`}
+                  label={`Tawar harga ${satuan}`}
                   error={hasil?.error?.harga_tawar}
                 >
                   <div className="flex items-center gap-2 rounded-[10px] border-2 border-daun-tua bg-putih px-4">
@@ -149,7 +149,7 @@ export default function FormPesanan({
                 </Kolom>
               ) : null}
 
-              <Kolom label="Catatan (boleh dikosongkan)" error={hasil?.error?.catatan}>
+              <Kolom label="Catatan (optional)" error={hasil?.error?.catatan}>
                 <textarea
                   name="catatan"
                   rows={3}
