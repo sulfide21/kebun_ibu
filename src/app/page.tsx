@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { ambilTertinggiKemarin } from "@/lib/hargaLelang";
@@ -31,11 +32,18 @@ export default async function Beranda() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 pb-20">
-      <header className="pt-10 pb-6">
-        <h1 className="text-4xl font-extrabold tracking-tight text-daun-tua">
-          Kebun Ibu
+      <header className="pt-8 pb-6 text-center">
+        <h1>
+          <Image
+            src="/logo.png"
+            alt="Kebun Ibu"
+            width={240}
+            height={288}
+            preload
+            className="mx-auto h-auto w-50 sm:w-60"
+          />
         </h1>
-        <p className="mt-1 text-daun">
+        <p className="mt-3 text-daun">
           Mangga dan pisang, dipetik sendiri, dijual ke keluarga.
         </p>
       </header>
