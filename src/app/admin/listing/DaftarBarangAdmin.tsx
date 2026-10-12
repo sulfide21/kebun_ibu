@@ -5,6 +5,7 @@ import KotakCari from "@/components/KotakCari";
 import { buatPencocok } from "@/lib/cari";
 import { rupiah } from "@/lib/format";
 import BarisListing from "./BarisListing";
+import type { TemplatPesan } from "@/lib/templat";
 import {
   LABEL_JENIS,
   LABEL_STATUS_LISTING,
@@ -14,9 +15,11 @@ import {
 export default function DaftarBarangAdmin({
   daftar,
   hitung,
+  templat,
 }: {
   daftar: ListingLengkap[];
   hitung: Record<string, number>;
+  templat: Partial<TemplatPesan>;
 }) {
   const [kueri, setKueri] = useState("");
 
@@ -59,7 +62,7 @@ export default function DaftarBarangAdmin({
         <ul className="grid gap-4">
           {hasil.map((l) => (
             <li key={l.id}>
-              <BarisListing listing={l} jumlahPesanan={hitung[l.id] ?? 0} />
+              <BarisListing listing={l} jumlahPesanan={hitung[l.id] ?? 0} templat={templat} />
             </li>
           ))}
         </ul>

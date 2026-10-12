@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { PesananDenganListing } from "./types";
 import {
   hargaAkhir,
   lelangTerbuka,
   ringkasLelang,
+  saringKotakMasuk,
   susunBeranda,
   tawaranTerbaruPerNomor,
   tertinggiSebelum,
@@ -272,5 +274,72 @@ describe("susunBeranda", () => {
 
   it("sisanya: dijual, segera, lelang ditutup, lalu sudah laku", () => {
     expect(susunBeranda(daftar, SEKARANG).lainnya.map((l) => l.id)).toEqual(["jual", "segera", "tutup", "laku"]);
+  });
+});
+
+describe("saringKotakMasuk", () => {
+  const listing = (id: string, judul: string, mode: "jual" | "lelang") => ({
+    id, judul, harga: 50000, satuan: "/keranjang", status: "tersedia" as const,
+    mode, batas_waktu: mode === "lelang" ? BESOK : null,
+  });
+  const lelangMangga = listing("m", "Mangga arumanis", "lelang");
+  const jualPisang = listing("p", "Pisang kepok", "jual");
+
+  const pesanan = (isi: Partial<PesananDenganListing>): PesananDenganListing => ({
+    id: `${isi.no_wa}-${isi.created_at}`,
+    listing_id: isi.listings?.id ?? null,
+    judul_snapshot: isi.listings?.judul ?? "",
+    harga_listing: 50000,
+    nama: "Penawar",
+    no_wa: "62811",
+    jenis: "pesan",
+    harga_tawar: null,
+    catatan: "",
+    status: "baru",
+    created_at: "2026-10-06T01:00:00Z",
+    diputuskan_at: null,
+    listings: null,
+    ...isi,
+  });
+
+  const daftar = [
+    pesanan({ jenis: "lelang", listings: lelangMangga, nama: "Budi", no_wa: "6281234567890", harga_tawar: 60000 }),
+    pesanan({ jenis: "lelang", listings: lelangMangga, nama: "Sari", no_wa: "6285500001111", harga_tawar: 80000, created_at: "2026-10-06T02:00:00Z" }),
+    pesanan({ jenis: "pesan", listings: jualPisang, nama: "Wati", no_wa: "6287700002222", catatan: "ambil sore" }),
+  ];
+
+  it("kotak kosong menampilkan semuanya", () => {
+    const hasil = saringKotakMasuk(daftar, "  ");
+    expect(hasil.lelang.map((r) => r.listing.id)).toEqual(["m"]);
+    expect(hasil.biasa.map((p) => p.nama)).toEqual(["Wati"]);
+  });
+
+  it("mencari pesanan biasa dari nama, barang, dan catatan", () => {
+    expect(saringKotakMasuk(daftar, "wati").biasa).toHaveLength(1);
+    expect(saringKotakMasuk(daftar, "kepok").biasa).toHaveLength(1);
+    expect(saringKotakMasuk(daftar, "sore").biasa).toHaveLength(1);
+    expect(saringKotakMasuk(daftar, "wati").lelang).toHaveLength(0);
+  });
+
+  it("nomor WhatsApp cocok dalam bentuk 62..., 08..., atau bergaris", () => {
+    expect(saringKotakMasuk(daftar, "6287700").biasa).toHaveLength(1);
+    expect(saringKotakMasuk(daftar, "087700002222").biasa).toHaveLength(1);
+    expect(saringKotakMasuk(daftar, "0877-0000").biasa).toHaveLength(1);
+  });
+
+  it("kartu lelang muncul kalau judulnya cocok", () => {
+    expect(saringKotakMasuk(daftar, "arumanis").lelang).toHaveLength(1);
+  });
+
+  it("kartu lelang yang cocok lewat satu penawar tetap memakai angka lengkap", () => {
+    const [kartu] = saringKotakMasuk(daftar, "budi").lelang;
+    expect(kartu.jumlahPenawar).toBe(2);
+    expect(kartu.tertinggi).toBe(80000);
+  });
+
+  it("tidak ada yang cocok", () => {
+    const hasil = saringKotakMasuk(daftar, "durian");
+    expect(hasil.lelang).toHaveLength(0);
+    expect(hasil.biasa).toHaveLength(0);
   });
 });

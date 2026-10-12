@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { pesanBagikan } from "@/lib/wa";
+import type { TemplatPesan } from "@/lib/templat";
 import type { Listing } from "@/lib/types";
 
 type Keadaan = "diam" | "tersalin" | "manual";
@@ -22,13 +23,15 @@ type Keadaan = "diam" | "tersalin" | "manual";
  */
 export default function TombolBagikan({
   listing,
+  templat,
   className = "",
 }: {
   listing: Listing;
+  templat?: Partial<TemplatPesan>;
   className?: string;
 }) {
   const [keadaan, setKeadaan] = useState<Keadaan>("diam");
-  const teks = pesanBagikan(listing);
+  const teks = pesanBagikan(listing, templat);
 
   async function salinKeClipboard(): Promise<boolean> {
     try {

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { rupiah } from "./format";
-import { cekKiriman, galatBatasWaktu, galatUbahMode, skemaListing, skemaPesanan } from "./validasi";
+import { TEMPLAT_AWAL } from "./templat";
+import {
+  cekKiriman,
+  galatBatasWaktu,
+  galatUbahMode,
+  hasilSimpanPengaturan,
+  skemaListing,
+  skemaPesanan,
+  skemaTemplat,
+} from "./validasi";
 
 const DASAR = {
   listing_id: "3f1c2a4e-8b7d-4c1a-9e2f-1a2b3c4d5e6f",
@@ -147,5 +156,78 @@ describe("galatUbahMode", () => {
     expect(galatUbahMode("jual", "lelang", 0)).toBeNull();
     expect(galatUbahMode("lelang", "lelang", 5)).toBeNull();
     expect(galatUbahMode(null, "lelang", 0)).toBeNull();
+  });
+});
+
+describe("skemaTemplat", () => {
+  const kosong = { wa_pesan: "", wa_lelang: "", bagikan_jual: "", bagikan_lelang: "" };
+
+  it("templat sah disimpan dengan baris baru \\n", () => {
+    const hasil = skemaTemplat.safeParse({ ...kosong, wa_pesan: "Ada {nama}\r\nNomor {nomor}" });
+    expect(hasil.success && hasil.data.wa_pesan).toBe("Ada {nama}\nNomor {nomor}");
+  });
+
+  it("teks bawaan yang dikirim browser (\\r\\n) disimpan sebagai kosong", () => {
+    const dariBrowser = TEMPLAT_AWAL.wa_lelang.replace(/\n/g, "\r\n");
+    const hasil = skemaTemplat.safeParse({ ...kosong, wa_lelang: dariBrowser });
+    expect(hasil.success && hasil.data.wa_lelang).toBe("");
+  });
+
+  it("hanya spasi dan baris kosong disimpan sebagai kosong", () => {
+    const hasil = skemaTemplat.safeParse({ ...kosong, bagikan_jual: "  \r\n  " });
+    expect(hasil.success && hasil.data.bagikan_jual).toBe("");
+  });
+
+  it("tag tak dikenal ditolak dengan nama tagnya, di kotak yang benar", () => {
+    const hasil = skemaTemplat.safeParse({ ...kosong, wa_pesan: "Halo {nma} {tawaran}" });
+    expect(hasil.success).toBe(false);
+    if (!hasil.success) {
+      const galat = hasil.error.issues[0];
+      expect(galat.path[0]).toBe("wa_pesan");
+      expect(galat.message).toContain("{nma}");
+      expect(galat.message).toContain("{tawaran}");
+    }
+  });
+
+  it("batas 1.000 huruf dihitung setelah \\r\\n diseragamkan", () => {
+    const pas = "a\r\n".repeat(500); // 1.000 huruf setelah jadi "a\n" x 500
+    expect(skemaTemplat.safeParse({ ...kosong, bagikan_lelang: pas }).success).toBe(true);
+    const lebih = skemaTemplat.safeParse({ ...kosong, bagikan_lelang: "a".repeat(1001) });
+    expect(lebih.success).toBe(false);
+  });
+});
+
+describe("hasilSimpanPengaturan", () => {
+  const galat = new Error("gagal");
+
+  it("keduanya tersimpan", () => {
+    expect(hasilSimpanPengaturan(null, null)).toEqual({
+      ok: true,
+      pesan: "Pengaturan tersimpan.",
+      segarkan: true,
+    });
+  });
+
+  it("templat gagal (misalnya tabel belum dibuat): musim tetap tersimpan dan disegarkan", () => {
+    const hasil = hasilSimpanPengaturan(null, galat);
+    expect(hasil.ok).toBe(false);
+    expect(hasil.pesan).toContain("Tulisan musim tersimpan");
+    expect(hasil.pesan).toContain("isi pesan belum tersimpan");
+    expect(hasil.segarkan).toBe(true);
+  });
+
+  it("musim gagal: templat tetap tersimpan dan disegarkan", () => {
+    const hasil = hasilSimpanPengaturan(galat, null);
+    expect(hasil.ok).toBe(false);
+    expect(hasil.pesan).toContain("Isi pesan tersimpan");
+    expect(hasil.segarkan).toBe(true);
+  });
+
+  it("keduanya gagal: tidak ada yang disegarkan", () => {
+    expect(hasilSimpanPengaturan(galat, galat)).toEqual({
+      ok: false,
+      pesan: "Gagal menyimpan pengaturan.",
+      segarkan: false,
+    });
   });
 });

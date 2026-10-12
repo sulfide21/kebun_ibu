@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { kirimPemberitahuanPesanan } from "@/lib/email";
+import { kirimWaPemberitahuan } from "@/lib/whatsapp";
+import { ambilTemplat } from "@/lib/templatServer";
 import { cekKiriman, pesanError, skemaPesanan } from "@/lib/validasi";
-import { tampilkanNoWa } from "@/lib/format";
 import type { Listing } from "@/lib/types";
 
 export type HasilPesanan = {
@@ -112,17 +113,24 @@ export async function buatPesanan(
     return { ok: false, pesan: "Gagal terkirim. Coba lagi sebentar lagi." };
   }
 
-  // Sudah aman tersimpan. Email menyusul, dan kalau gagal pun tidak
-  // mengubah apa pun bagi pembeli.
-  await kirimPemberitahuanPesanan({
+  // Sudah aman tersimpan. Email dan WhatsApp menyusul bersamaan, dan
+  // kalau gagal pun tidak mengubah apa pun bagi pembeli. Tetap ditunggu:
+  // di Vercel, pekerjaan yang belum selesai dihentikan begitu response
+  // dikirim.
+  const isiPemberitahuan = {
     nama: data.nama,
-    noWa: tampilkanNoWa(data.no_wa),
+    noWa: data.no_wa,
     judulListing: listing.judul,
     jenis: data.jenis,
+    hargaListing: listing.harga,
     hargaTawar: data.harga_tawar,
     batasWaktu: lelang ? listing.batas_waktu : null,
     catatan: data.catatan,
-  });
+  };
+  await Promise.all([
+    kirimPemberitahuanPesanan(isiPemberitahuan),
+    ambilTemplat().then((templat) => kirimWaPemberitahuan(isiPemberitahuan, templat)),
+  ]);
 
   revalidatePath("/admin");
   revalidatePath(`/l/${data.listing_id}`);

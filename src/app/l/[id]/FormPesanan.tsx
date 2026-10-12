@@ -46,9 +46,6 @@ export default function FormPesanan({
     return (
       <div className="rounded-[10px] border-2 border-daun bg-putih px-5 py-6 text-center">
         <p className="text-xl font-bold text-daun-tua">{hasil.pesan}</p>
-        <p className="mt-2 text-daun">
-          Simpan nomor Ibu supaya pesannya tidak masuk ke spam.
-        </p>
       </div>
     );
   }

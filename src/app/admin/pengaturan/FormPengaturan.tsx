@@ -3,11 +3,15 @@
 import { useActionState } from "react";
 import { simpanPengaturan, type HasilAksi } from "../actions";
 import type { Pengaturan } from "@/lib/types";
+import KotakTemplat from "./KotakTemplat";
+import type { TemplatPesan } from "@/lib/templat";
 
 export default function FormPengaturan({
   pengaturan,
+  templat,
 }: {
   pengaturan: Pengaturan | null;
+  templat: TemplatPesan;
 }) {
   const [hasil, simpan, sedangSimpan] = useActionState<
     HasilAksi | null,
@@ -44,6 +48,44 @@ export default function FormPengaturan({
         />
         <span className="font-semibold">Tampilkan di halaman depan</span>
       </label>
+
+      <div className="mt-4 grid gap-1">
+        <h2 className="text-2xl font-extrabold text-daun-tua">Isi pesan</h2>
+        <p className="text-daun">
+          Tulis bebas. Tekan tombol tag untuk menyisipkan nama, nomor, harga,
+          dan lainnya. Bagian &ldquo;Contoh hasil&rdquo; menunjukkan pesannya
+          nanti.
+        </p>
+      </div>
+
+      <KotakTemplat
+        jenis="wa_pesan"
+        judul="WhatsApp: pesanan baru"
+        keterangan="Dikirim ke WhatsApp Ibu setiap ada pesanan barang biasa."
+        awal={templat.wa_pesan}
+        galat={hasil?.error?.wa_pesan}
+      />
+      <KotakTemplat
+        jenis="wa_lelang"
+        judul="WhatsApp: tawaran lelang baru"
+        keterangan="Dikirim ke WhatsApp Ibu setiap ada tawaran lelang."
+        awal={templat.wa_lelang}
+        galat={hasil?.error?.wa_lelang}
+      />
+      <KotakTemplat
+        jenis="bagikan_jual"
+        judul="Bagikan: barang biasa"
+        keterangan="Teks yang disalin saat menekan Bagikan pada barang biasa."
+        awal={templat.bagikan_jual}
+        galat={hasil?.error?.bagikan_jual}
+      />
+      <KotakTemplat
+        jenis="bagikan_lelang"
+        judul="Bagikan: barang lelang"
+        keterangan="Teks yang disalin saat menekan Bagikan pada barang lelang."
+        awal={templat.bagikan_lelang}
+        galat={hasil?.error?.bagikan_lelang}
+      />
 
       {hasil?.pesan ? (
         <p

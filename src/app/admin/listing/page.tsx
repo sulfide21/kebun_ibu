@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { urutkanListing } from "@/lib/foto";
+import type { TemplatPesan } from "@/lib/templat";
 import type { ListingLengkap } from "@/lib/types";
 import DaftarBarangAdmin from "./DaftarBarangAdmin";
 
@@ -9,12 +10,15 @@ export const revalidate = 0;
 export default async function KelolaListing() {
   const supabase = await supabaseServer();
 
-  const [{ data: listings }, { data: pesanan }] = await Promise.all([
+  const [{ data: listings }, { data: pesanan }, { data: templat }] = await Promise.all([
     supabase
       .from("listings")
       .select("*, listing_foto(*)")
       .order("created_at", { ascending: false }),
     supabase.from("pesanan").select("listing_id"),
+    // Gagal dibaca (misalnya migrasi belum dijalankan) = null, dan
+    // tombol Bagikan memakai teks bawaan.
+    supabase.from("templat_pesan").select("bagikan_jual, bagikan_lelang").eq("id", 1).maybeSingle(),
   ]);
 
   const hitung: Record<string, number> = {};
@@ -55,7 +59,11 @@ export default async function KelolaListing() {
           </Link>
         </div>
       ) : (
-        <DaftarBarangAdmin daftar={daftar} hitung={hitung} />
+        <DaftarBarangAdmin
+          daftar={daftar}
+          hitung={hitung}
+          templat={(templat ?? {}) as Partial<TemplatPesan>}
+        />
       )}
     </>
   );

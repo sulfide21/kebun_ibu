@@ -30,6 +30,23 @@ describe("pesanBagikan", () => {
     expect(teks).not.toContain("nawar");
     expect(teks).toContain("Mau pesan?");
   });
+
+  it("memakai templat khusus sesuai mode barang", () => {
+    const templat = {
+      bagikan_jual: "Jual {barang} {harga}{satuan} {link}",
+      bagikan_lelang: "Lelang {barang} mulai {harga_mulai}, tutup {ditutup}",
+    };
+    expect(pesanBagikan(dasar, templat)).toBe(
+      `Jual Mangga Harum Manis ${rupiah(50000)}/keranjang ${alamatSitus()}/l/abc`,
+    );
+    expect(
+      pesanBagikan({ ...dasar, mode: "lelang", batas_waktu: "2026-10-10T06:00:00Z" }, templat),
+    ).toBe(`Lelang Mangga Harum Manis mulai ${rupiah(50000)}, tutup Sab, 10 Okt, 14.00 WITA`);
+  });
+
+  it("templat kosong memakai teks bawaan", () => {
+    expect(pesanBagikan(dasar, { bagikan_jual: "  " })).toBe(pesanBagikan(dasar));
+  });
 });
 
 describe("pesanMenangLelang", () => {

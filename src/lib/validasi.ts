@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { rupiah } from "./format";
 import { lelangTerbuka } from "./lelang";
+import { TEMPLAT_AWAL, tagTakDikenal, type JenisTemplat } from "./templat";
 import type { Listing, ModeListing } from "./types";
 import { bacaInputWita } from "./waktu";
 
@@ -159,6 +160,64 @@ export function galatUbahMode(
 export const skemaPengaturan = z.object({
   teks_musim: z.string().trim().max(200, "Teks terlalu panjang.").default(""),
   tampilkan_banner: z.boolean(),
+});
+
+/**
+ * Satu kotak templat. Browser mengirim baris baru sebagai \r\n, jadi
+ * diseragamkan dulu sebelum dihitung panjangnya dan dibandingkan dengan
+ * teks bawaan. Teks bawaan dan isi kosong disimpan sebagai "", supaya
+ * perbaikan teks bawaan nanti ikut terpakai.
+ */
+const kotakTemplat = (jenis: JenisTemplat) =>
+  z
+    .string()
+    .transform((s) => s.replace(/\r\n/g, "\n"))
+    .pipe(
+      z
+        .string()
+        .max(1000, "Maksimal 1.000 huruf.")
+        .superRefine((s, ctx) => {
+          const asing = tagTakDikenal(s, jenis);
+          if (asing.length > 0) {
+            ctx.addIssue({
+              code: "custom",
+              message: `Tag ${asing.map((t) => `{${t}}`).join(", ")} tidak dikenal di pesan ini. Pakai tombol tag di bawah kotak.`,
+            });
+          }
+        }),
+    )
+    .transform((s) => (s.trim() === "" || s === TEMPLAT_AWAL[jenis] ? "" : s));
+
+/**
+ * Pengaturan disimpan ke dua tabel, tidak dalam satu transaksi. Kalau
+ * hanya satu yang gagal (misalnya tabel templat belum dibuat karena
+ * migrasi belum dijalankan), yang berhasil tetap disebut dan halaman
+ * tetap disegarkan, supaya Ibu tidak mengira semuanya gagal.
+ */
+export function hasilSimpanPengaturan(
+  galatMusim: unknown,
+  galatTemplat: unknown,
+): { ok: boolean; pesan: string; segarkan: boolean } {
+  if (!galatMusim && !galatTemplat) {
+    return { ok: true, pesan: "Pengaturan tersimpan.", segarkan: true };
+  }
+  if (galatMusim && galatTemplat) {
+    return { ok: false, pesan: "Gagal menyimpan pengaturan.", segarkan: false };
+  }
+  return {
+    ok: false,
+    pesan: galatTemplat
+      ? "Tulisan musim tersimpan, tapi isi pesan belum tersimpan. Coba lagi sebentar lagi."
+      : "Isi pesan tersimpan, tapi tulisan musim belum tersimpan. Coba lagi sebentar lagi.",
+    segarkan: true,
+  };
+}
+
+export const skemaTemplat = z.object({
+  wa_pesan: kotakTemplat("wa_pesan"),
+  wa_lelang: kotakTemplat("wa_lelang"),
+  bagikan_jual: kotakTemplat("bagikan_jual"),
+  bagikan_lelang: kotakTemplat("bagikan_lelang"),
 });
 
 /** Ubah error zod jadi { namaKolom: pesan } untuk ditampilkan di form. */

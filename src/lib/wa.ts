@@ -1,5 +1,6 @@
 import { rupiah } from "./format";
 import { hargaAkhir } from "./lelang";
+import { isiTemplat, pakaiTemplat, type TemplatPesan } from "./templat";
 import type { Listing, PesananDenganListing } from "./types";
 import { formatWita } from "./waktu";
 
@@ -15,26 +16,25 @@ export function linkWa(no: string, pesan: string): string {
 }
 
 /** Pesan siap tempel untuk dibagikan Ibu/Bapak ke grup keluarga. */
-export function pesanBagikan(listing: Listing): string {
+export function pesanBagikan(listing: Listing, templat: Partial<TemplatPesan> = {}): string {
   const link = `${alamatSitus()}/l/${listing.id}`;
 
   if (listing.mode === "lelang" && listing.batas_waktu) {
-    return [
-      `Ada ${listing.judul} nih, dilelang.`,
-      `Mulai ${rupiah(listing.harga)} ${listing.satuan}, ditutup ${formatWita(new Date(listing.batas_waktu))}.`,
-      ``,
-      `Ikut lelang lewat sini:`,
+    return isiTemplat(pakaiTemplat(templat.bagikan_lelang, "bagikan_lelang"), {
+      barang: listing.judul,
+      harga_mulai: rupiah(listing.harga),
+      satuan: listing.satuan,
+      ditutup: formatWita(new Date(listing.batas_waktu)),
       link,
-    ].join("\n");
+    });
   }
 
-  return [
-    `Ada ${listing.judul} nih.`,
-    `Harga ${rupiah(listing.harga)} ${listing.satuan}.`,
-    ``,
-    `Mau pesan? Lewat sini aja:`,
+  return isiTemplat(pakaiTemplat(templat.bagikan_jual, "bagikan_jual"), {
+    barang: listing.judul,
+    harga: rupiah(listing.harga),
+    satuan: listing.satuan,
     link,
-  ].join("\n");
+  });
 }
 
 /** Dikirim Ibu/Bapak ke pemenang lelang. */

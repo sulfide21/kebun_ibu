@@ -1,3 +1,5 @@
+import { buatPencocok } from "./cari";
+import { tampilkanNoWa } from "./format";
 import type { Listing, Pesanan, PesananDenganListing } from "./types";
 
 type ListingRingkas = NonNullable<PesananDenganListing["listings"]>;
@@ -187,6 +189,42 @@ export function ringkasLelang(
       };
     })
     .sort((a, b) => waktuBatas(a.listing) - waktuBatas(b.listing));
+}
+
+/**
+ * Pencarian di kotak masuk. Pesanan biasa disaring per baris. Kartu
+ * lelang ikut tampil kalau judulnya atau salah satu penawarnya cocok,
+ * tapi angkanya tetap dihitung dari semua tawaran - mencari "Budi" tidak
+ * boleh membuat kartunya seolah hanya punya satu penawar.
+ */
+export function saringKotakMasuk(
+  daftar: PesananDenganListing[],
+  kueri: string,
+): { lelang: RingkasanLelang[]; biasa: PesananDenganListing[] } {
+  const cocok = buatPencocok(kueri);
+  // Nomor ikut dicari dalam tiga bentuk: 62812..., 0812..., 0812-....
+  const cocokPesanan = (p: PesananDenganListing) =>
+    cocok(
+      p.listings?.judul,
+      p.judul_snapshot,
+      p.nama,
+      p.no_wa,
+      p.no_wa.startsWith("62") ? "0" + p.no_wa.slice(2) : null,
+      tampilkanNoWa(p.no_wa),
+      p.catatan,
+      String(hargaAkhir(p)),
+    );
+
+  const lelangCocok = new Set(
+    daftar
+      .filter((p) => p.jenis === "lelang" && p.listings !== null && cocokPesanan(p))
+      .map((p) => p.listings!.id),
+  );
+
+  return {
+    lelang: ringkasLelang(daftar).filter((r) => lelangCocok.has(r.listing.id)),
+    biasa: daftar.filter((p) => p.jenis !== "lelang" && cocokPesanan(p)),
+  };
 }
 
 type ListingBeranda = Pick<Listing, "mode" | "status" | "batas_waktu" | "created_at">;

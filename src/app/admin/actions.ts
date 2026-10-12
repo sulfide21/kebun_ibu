@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { galatBatasWaktu, galatUbahMode, pesanError, skemaListing, skemaPengaturan } from "@/lib/validasi";
+import { galatBatasWaktu, galatUbahMode, pesanError, hasilSimpanPengaturan, skemaListing, skemaPengaturan, skemaTemplat } from "@/lib/validasi";
 import type { ModeListing, StatusPesanan } from "@/lib/types";
 
 export type HasilAksi = {
@@ -342,26 +342,47 @@ export async function simpanPengaturan(
   _sebelumnya: HasilAksi | null,
   formData: FormData,
 ): Promise<HasilAksi> {
-  const hasil = skemaPengaturan.safeParse({
+  const pengaturan = skemaPengaturan.safeParse({
     teks_musim: formData.get("teks_musim") ?? "",
     tampilkan_banner: formData.get("tampilkan_banner") === "on",
   });
+  const templat = skemaTemplat.safeParse({
+    wa_pesan: formData.get("wa_pesan") ?? "",
+    wa_lelang: formData.get("wa_lelang") ?? "",
+    bagikan_jual: formData.get("bagikan_jual") ?? "",
+    bagikan_lelang: formData.get("bagikan_lelang") ?? "",
+  });
 
-  if (!hasil.success) return { ok: false, error: pesanError(hasil.error) };
-
-  const supabase = await supabaseServer();
-  const { error } = await supabase
-    .from("pengaturan")
-    .update(hasil.data)
-    .eq("id", 1);
-
-  if (error) {
-    console.error("[admin] gagal simpan pengaturan:", error.message);
-    return { ok: false, pesan: "Gagal menyimpan pengaturan." };
+  if (!pengaturan.success || !templat.success) {
+    return {
+      ok: false,
+      pesan: "Belum tersimpan. Periksa tulisan merah di bawah.",
+      error: {
+        ...(pengaturan.success ? {} : pesanError(pengaturan.error)),
+        ...(templat.success ? {} : pesanError(templat.error)),
+      },
+    };
   }
 
-  segarkan();
-  return { ok: true, pesan: "Pengaturan tersimpan." };
+  const supabase = await supabaseServer();
+  const [simpanMusim, simpanTemplat] = await Promise.all([
+    supabase.from("pengaturan").update(pengaturan.data).eq("id", 1),
+    supabase
+      .from("templat_pesan")
+      .update({ ...templat.data, diubah_at: new Date().toISOString() })
+      .eq("id", 1),
+  ]);
+
+  if (simpanMusim.error) {
+    console.error("[admin] gagal simpan tulisan musim:", simpanMusim.error.message);
+  }
+  if (simpanTemplat.error) {
+    console.error("[admin] gagal simpan templat pesan:", simpanTemplat.error.message);
+  }
+
+  const hasil = hasilSimpanPengaturan(simpanMusim.error, simpanTemplat.error);
+  if (hasil.segarkan) segarkan();
+  return { ok: hasil.ok, pesan: hasil.pesan };
 }
 
 // --------------------------- AKUN ---------------------------

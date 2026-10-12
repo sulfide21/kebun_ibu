@@ -7,6 +7,7 @@ import { urlFoto } from "@/lib/foto";
 import { rupiah } from "@/lib/format";
 import { formatWita } from "@/lib/waktu";
 import TombolBagikan from "@/components/TombolBagikan";
+import type { TemplatPesan } from "@/lib/templat";
 import { LABEL_STATUS_LISTING, type ListingLengkap } from "@/lib/types";
 
 const WARNA_STATUS: Record<string, string> = {
@@ -18,9 +19,11 @@ const WARNA_STATUS: Record<string, string> = {
 export default function BarisListing({
   listing,
   jumlahPesanan,
+  templat,
 }: {
   listing: ListingLengkap;
   jumlahPesanan: number;
+  templat: Partial<TemplatPesan>;
 }) {
   const [menunggu, mulai] = useTransition();
   const [konfirmasi, setKonfirmasi] = useState(false);
@@ -124,7 +127,7 @@ export default function BarisListing({
         </div>
       ) : (
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <TombolBagikan listing={listing} />
+          <TombolBagikan listing={listing} templat={templat} />
           <Link
             href={`/admin/listing/${listing.id}`}
             className="flex min-h-13 items-center justify-center rounded-full border-2 border-daun-tua px-4 font-bold"

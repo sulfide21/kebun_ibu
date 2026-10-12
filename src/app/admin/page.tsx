@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { LABEL_STATUS_PESANAN, type PesananDenganListing } from "@/lib/types";
-import { ringkasLelang } from "@/lib/lelang";
-import KartuLelang from "./KartuLelang";
-import KartuPesanan from "./KartuPesanan";
+import DaftarKotakMasuk from "./DaftarKotakMasuk";
 import Ringkasan from "./Ringkasan";
 
 export const revalidate = 0;
@@ -39,9 +37,6 @@ export default async function KotakMasuk({
   ]);
 
   const daftar = (pesanan ?? []) as PesananDenganListing[];
-  const lelang = ringkasLelang(daftar);
-  const biasa = daftar.filter((p) => p.jenis !== "lelang");
-  const sekarang = new Date();
 
   return (
     <>
@@ -93,18 +88,7 @@ export default async function KotakMasuk({
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4">
-          {lelang.map((r) => (
-            <KartuLelang key={r.listing.id} ringkasan={r} sekarang={sekarang} />
-          ))}
-          <ul className="grid gap-4">
-            {biasa.map((p) => (
-              <li key={p.id}>
-                <KartuPesanan pesanan={p} />
-              </li>
-            ))}
-          </ul>
-        </div>
+        <DaftarKotakMasuk daftar={daftar} sekarang={new Date().toISOString()} />
       )}
     </>
   );
