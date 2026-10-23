@@ -1,0 +1,6 @@
+polars>=1.0
+pandera[polars]>=0.24
+duckdb>=1.1
+pyarrow
+curl_cffi>=0.7
+pytest>=8

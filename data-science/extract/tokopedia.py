@@ -27,7 +27,7 @@ PARAM_DASAR = {
     "q": "",
     "rows": 60,
     "ob": 23,
-    "device": "dekstop",
+    "device": "desktop",
     "st": "product",
     "safe_search": "false",
     "user_id": 0,
@@ -42,11 +42,12 @@ KEPALA = {
     "Referer": "https://www.tokopedia.com/p/makanan-minuman/buah/buah-buahan",
     "X-Source": "tokopedia-lite",
     "X-Tkpd-Lite-Service": "zeus",
-    "X-Device": "dekstop-0.0",
+    "X-Device": "desktop-0.0",
     
 }
 
 QUERY = """ 
+query SearchProductV5Query($params: String!) {
     searchProductV5(params: $params) {
         header { totalData }
         data{
@@ -60,7 +61,7 @@ QUERY = """
             }
         }
     }
-
+}
 """
 
 def buat_sesi() -> requests.Session:
