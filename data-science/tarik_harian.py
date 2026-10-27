@@ -2,7 +2,10 @@
 
 Aman dijalankan berkali-kali dalam sehari: sumber yang sudah sukses hari ini
 dilewati, karena siapkan_folder menghapus folder tanggal itu sebelum menarik.
+Tarik ulang paksa (misalnya kalau data hari ini ternyata rusak):
+    python tarik_harian.py --ulang tokopedia
 """
+import argparse
 import logging
 import sys
 from datetime import date
@@ -33,12 +36,16 @@ def jalankan(
     tanggal: date,
     akar: Path,
     penarik: dict[str, Callable[[date, Path], HasilTarik]] = PENARIK,
+    ulang: set[str] = frozenset(),
 ) -> int:
-    """Menarik setiap sumber yang belum sukses hari ini. Mengembalikan jumlah sumber yang gagal."""
+    """Menarik setiap sumber yang belum sukses hari ini, ditambah sumber di `ulang`.
+
+    Mengembalikan jumlah sumber yang gagal.
+    """
     gagal = 0
     for sumber, tarik in penarik.items():
         folder = folder_tanggal(akar, sumber, tanggal)
-        if (folder / PENANDA).exists():
+        if (folder / PENANDA).exists() and sumber not in ulang:
             log.info("%s: dilewati, sudah sukses %s", sumber, tanggal)
             continue
         try:
@@ -55,14 +62,24 @@ def jalankan(
     return gagal
 
 
+def baca_argumen(argv: list[str] | None = None) -> set[str]:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--ulang", nargs="+", choices=list(PENARIK), default=[],
+        help="sumber yang ditarik ulang walau hari ini sudah sukses",
+    )
+    return set(parser.parse_args(argv).ulang)
+
+
 def main() -> int:
+    ulang = baca_argumen()
     LOG.parent.mkdir(exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
         handlers=[logging.FileHandler(LOG, encoding="utf-8"), logging.StreamHandler()],
     )
-    gagal = jalankan(date.today(), AKAR)
+    gagal = jalankan(date.today(), AKAR, ulang=ulang)
     log.info("selesai, %d sumber gagal", gagal)
     return 1 if gagal else 0
 

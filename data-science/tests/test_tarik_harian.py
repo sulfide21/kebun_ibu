@@ -1,7 +1,7 @@
 from datetime import date
 
 from extract.http import HasilTarik, siapkan_folder, simpan_json
-from tarik_harian import PENANDA, jalankan
+from tarik_harian import PENANDA, baca_argumen, jalankan
 
 TANGGAL = date(2026, 10, 27)
 
@@ -68,3 +68,35 @@ def test_galat_di_satu_sumber_tidak_menghentikan_sumber_lain(tmp_path):
 
     assert gagal == 1
     assert (folder(tmp_path, "tokopedia") / PENANDA).exists()
+
+
+def test_ulang_menarik_lagi_walau_sudah_sukses(tmp_path):
+    jalankan(TANGGAL, tmp_path, {"blibli": penarik_palsu("blibli")})
+    dipanggil = []
+
+    gagal = jalankan(
+        TANGGAL, tmp_path, {"blibli": penarik_palsu("blibli", dipanggil=dipanggil)}, ulang={"blibli"}
+    )
+
+    assert gagal == 0
+    assert dipanggil == ["blibli"]
+    assert (folder(tmp_path, "blibli") / PENANDA).exists()
+
+
+def test_ulang_hanya_berlaku_untuk_sumber_yang_disebut(tmp_path):
+    jalankan(TANGGAL, tmp_path, {"blibli": penarik_palsu("blibli"), "tokopedia": penarik_palsu("tokopedia")})
+    dipanggil = []
+    penarik = {
+        "blibli": penarik_palsu("blibli", dipanggil=dipanggil),
+        "tokopedia": penarik_palsu("tokopedia", dipanggil=dipanggil),
+    }
+
+    jalankan(TANGGAL, tmp_path, penarik, ulang={"tokopedia"})
+
+    assert dipanggil == ["tokopedia"]
+
+
+def test_baca_argumen():
+    assert baca_argumen([]) == set()
+    assert baca_argumen(["--ulang", "tokopedia"]) == {"tokopedia"}
+    assert baca_argumen(["--ulang", "blibli", "tokopedia"]) == {"blibli", "tokopedia"}
