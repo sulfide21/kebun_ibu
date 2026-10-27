@@ -4,6 +4,8 @@ Aman dijalankan berkali-kali dalam sehari: sumber yang sudah sukses hari ini
 dilewati, karena siapkan_folder menghapus folder tanggal itu sebelum menarik.
 Tarik ulang paksa (misalnya kalau data hari ini ternyata rusak):
     python tarik_harian.py --ulang tokopedia
+Satu sumber saja (VPS, karena Blibli memblokir IP pusat data):
+    python tarik_harian.py --sumber tokopedia
 """
 import argparse
 import logging
@@ -62,24 +64,31 @@ def jalankan(
     return gagal
 
 
-def baca_argumen(argv: list[str] | None = None) -> set[str]:
+def baca_argumen(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--sumber", nargs="+", choices=list(PENARIK), default=list(PENARIK),
+        help="sumber yang ditarik (bawaan: semua); VPS hanya tokopedia karena Blibli memblokir IP server",
+    )
     parser.add_argument(
         "--ulang", nargs="+", choices=list(PENARIK), default=[],
         help="sumber yang ditarik ulang walau hari ini sudah sukses",
     )
-    return set(parser.parse_args(argv).ulang)
+    argumen = parser.parse_args(argv)
+    argumen.ulang = set(argumen.ulang)
+    return argumen
 
 
 def main() -> int:
-    ulang = baca_argumen()
+    argumen = baca_argumen()
+    penarik = {sumber: PENARIK[sumber] for sumber in argumen.sumber}
     LOG.parent.mkdir(exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
         handlers=[logging.FileHandler(LOG, encoding="utf-8"), logging.StreamHandler()],
     )
-    gagal = jalankan(date.today(), AKAR, ulang=ulang)
+    gagal = jalankan(date.today(), AKAR, penarik, argumen.ulang)
     log.info("selesai, %d sumber gagal", gagal)
     return 1 if gagal else 0
 

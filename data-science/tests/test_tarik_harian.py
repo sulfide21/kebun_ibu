@@ -96,7 +96,17 @@ def test_ulang_hanya_berlaku_untuk_sumber_yang_disebut(tmp_path):
     assert dipanggil == ["tokopedia"]
 
 
-def test_baca_argumen():
-    assert baca_argumen([]) == set()
-    assert baca_argumen(["--ulang", "tokopedia"]) == {"tokopedia"}
-    assert baca_argumen(["--ulang", "blibli", "tokopedia"]) == {"blibli", "tokopedia"}
+def test_baca_argumen_bawaan_semua_sumber_tanpa_ulang():
+    argumen = baca_argumen([])
+
+    assert argumen.sumber == ["blibli", "tokopedia"]
+    assert argumen.ulang == set()
+
+
+def test_baca_argumen_ulang():
+    assert baca_argumen(["--ulang", "tokopedia"]).ulang == {"tokopedia"}
+    assert baca_argumen(["--ulang", "blibli", "tokopedia"]).ulang == {"blibli", "tokopedia"}
+
+
+def test_baca_argumen_sumber_tertentu():
+    assert baca_argumen(["--sumber", "tokopedia"]).sumber == ["tokopedia"]
