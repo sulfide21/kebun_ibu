@@ -60,14 +60,14 @@ export default function FormPengaturan({
 
       <KotakTemplat
         jenis="wa_pesan"
-        judul="WhatsApp: pesanan baru"
+        judul="Notifikasi WhatsApp: pesanan baru"
         keterangan="Dikirim ke WhatsApp Ibu setiap ada pesanan barang biasa."
         awal={templat.wa_pesan}
         galat={hasil?.error?.wa_pesan}
       />
       <KotakTemplat
         jenis="wa_lelang"
-        judul="WhatsApp: tawaran lelang baru"
+        judul="Notifikasi WhatsApp: tawaran lelang baru"
         keterangan="Dikirim ke WhatsApp Ibu setiap ada tawaran lelang."
         awal={templat.wa_lelang}
         galat={hasil?.error?.wa_lelang}
