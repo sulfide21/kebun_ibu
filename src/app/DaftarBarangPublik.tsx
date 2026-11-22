@@ -122,7 +122,8 @@ function KartuListing({
   return (
     <Link
       href={`/l/${listing.id}`}
-      className="group block overflow-hidden rounded-[10px] border-2 border-daun-tua bg-putih kartu-interaktif animasi-masuk"
+      // h-full: kartu mengisi tinggi sel grid, jadi kartu satu baris sama tinggi walau deskripsinya beda panjang
+      className="group flex h-full flex-col overflow-hidden rounded-[10px] border-2 border-daun-tua bg-putih kartu-interaktif animasi-masuk"
     >
       <div className="relative aspect-4/3 overflow-hidden bg-kertas-tua">
         {foto ? (
