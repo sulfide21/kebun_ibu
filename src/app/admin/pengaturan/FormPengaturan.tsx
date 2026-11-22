@@ -58,7 +58,8 @@ export default function FormPengaturan({
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Satu kotak per baris (keputusan pengguna 22 Nov): dua kolom membuat kotak yang dibuka tidak sejajar. */}
+      <div className="grid gap-4">
         <KotakTemplat
           jenis="wa_pesan"
           judul="Notifikasi WhatsApp: pesanan baru"
